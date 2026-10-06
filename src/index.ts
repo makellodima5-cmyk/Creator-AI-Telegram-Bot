@@ -1,29 +1,16 @@
 import { Hono } from "hono";
 import type { AppEnv } from "./env";
-
-type QueueJobMessage = {
-  jobId: number;
-};
+import { handleWebhook } from "./telegram/webhook";
+import { consumeJobs } from "./jobs/consumer";
 
 const app = new Hono<AppEnv>();
-
-app.get("/", (c) =>
-  c.json({
-    ok: true,
-    service: "creator-ai-telegram-bot",
-  }),
-);
-
+app.get("/", (c) => c.json({ ok: true, service: "creator-ai-telegram-bot" }));
 app.get("/health", (c) => c.json({ ok: true }));
-
-export default {
-  fetch: app.fetch,
-  async queue(batch: MessageBatch<QueueJobMessage>): Promise<void> {
-    for (const message of batch.messages) {
-      console.log("Queue job received", {
-        messageId: message.id,
-        jobId: message.body.jobId,
-      });
-    }
-  },
-} satisfies ExportedHandler<AppEnv["Bindings"], Error>;
+app.post("/telegram/webhook", async (c) => {
+  const secret = c.env.TELEGRAM_WEBHOOK_SECRET;
+  if (secret && c.req.header("X-Telegram-Bot-Api-Secret-Token") !== secret) return c.json({ ok: false }, 401);
+  const update = await c.req.json();
+  c.executionCtx.waitUntil(handleWebhook(c.env, update));
+  return c.json({ ok: true });
+});
+export default { fetch: app.fetch, queue: consumeJobs } satisfies ExportedHandler<AppEnv["Bindings"], Error>;
