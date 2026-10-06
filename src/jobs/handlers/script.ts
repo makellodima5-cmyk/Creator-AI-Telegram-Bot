@@ -3,7 +3,7 @@ import { jobs } from "../../db/schema";
 import { createDb } from "../../db/client";
 import { OpenAIProvider } from "../../ai/openai";
 import { editMessageText } from "../../telegram/api";
-import { scriptResult } from "../../telegram/keyboards";
+import { mainMenu, scriptResult } from "../../telegram/keyboards";
 import { refundCredits } from "../../billing/credits";
 import type { Bindings } from "../../env";
 import type { ScriptJobInput } from "../types";
