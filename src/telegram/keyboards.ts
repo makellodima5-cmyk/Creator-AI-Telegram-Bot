@@ -12,4 +12,4 @@ export const postResult=(jobId:number,copyText="")=>({inline_keyboard:[[b("🔄 
 export const pricingKeyboard={inline_keyboard:[[b("⭐ Creator — 99 ⭐","buy:creator")],[b("🔥 Pro — 299 ⭐","buy:pro")],[b("⭐ Купить credits","buy:credits")],[b("← Назад","menu:back")]]};
 
 export const scriptResult=(jobId:number)=>({inline_keyboard:[[b("← Назад",`script:back-result:${jobId}`)]]});
-export const planResult=(jobId:number)=>({inline_keyboard:[[b("← Назад",`plan:back-result:${jobId}`)]]});
+export const planResult=(jobId:number,days:any[]=[])=>({inline_keyboard:[...days.slice(0,7).map((d:any,i:number)=>[b(`${d.day} · ${String(d.title).slice(0,28)}`,`plan:view:${jobId}:${i}`)]),[b("← Назад",`plan:back-result:${jobId}`)]]});
