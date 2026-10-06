@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { jobs } from "../../db/schema";
 import { createDb } from "../../db/client";
 import { OpenAIProvider } from "../../ai/openai";
-import { editMessageText } from "../../telegram/api";
+import { editMessageText } from "../../telegram/api";\nimport { userSessions } from "../../db/schema";
 import { postResult, mainMenu } from "../../telegram/keyboards";
 import { refundCredits } from "../../billing/credits";
 import type { Bindings } from "../../env";
@@ -20,7 +20,8 @@ export async function handlePostJob(env:Bindings,jobId:number){
   }catch(error){
     if(job.creditsReserved>0)await refundCredits(env,job.userId,job.creditsReserved,job.id);
     await db.update(jobs).set({status:"failed",creditsReserved:0,errorMessage:error instanceof Error?error.message:"unknown_error",completedAt:new Date()}).where(eq(jobs.id,jobId));
-    if(job.telegramChatId&&job.telegramMessageId)await editMessageText(env,job.telegramChatId,job.telegramMessageId,"❌ Не удалось создать пост. Credits возвращены.",mainMenu);
+    if(job.telegramChatId&&job.telegramMessageId)await editMessageText(env,job.telegramChatId,job.telegramMessageId,"❌ Не удалось создать пост.\n\nCredits возвращены.",mainMenu);
+    if(job.telegramChatId&&job.telegramMessageId)await db.update(userSessions).set({flow:"ui",step:"menu",draftJson:JSON.stringify({kind:"menu",messageId:job.telegramMessageId}),updatedAt:new Date()}).where(eq(userSessions.userId,job.userId));
     throw error;
   }
 }
