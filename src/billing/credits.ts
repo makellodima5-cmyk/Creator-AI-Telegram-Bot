@@ -17,9 +17,10 @@ export async function ensureUser(env: Bindings, telegramId: string, firstName?: 
   }
   if(existing.creditsResetAt&&existing.creditsResetAt.getTime()<=now.getTime()){
     const credits=existing.plan==="pro"?500:existing.plan==="creator"?100:10;
-    await db.update(users).set({creditsBalance:credits,creditsResetAt:new Date(now.getTime()+30*86_400_000),updatedAt:now}).where(eq(users.id,existing.id));
-    await db.insert(creditLedger).values({userId:existing.id,delta:credits-existing.creditsBalance,balanceAfter:credits,reason:"period_reset",createdAt:now});
-    existing={...existing,creditsBalance:credits,creditsResetAt:new Date(now.getTime()+30*86_400_000),updatedAt:now};
+    const newBalance=existing.creditsBalance+credits;
+    await db.update(users).set({creditsBalance:newBalance,creditsResetAt:new Date(now.getTime()+30*86_400_000),updatedAt:now}).where(eq(users.id,existing.id));
+    await db.insert(creditLedger).values({userId:existing.id,delta:credits,balanceAfter:newBalance,reason:"period_grant",createdAt:now});
+    existing={...existing,creditsBalance:newBalance,creditsResetAt:new Date(now.getTime()+30*86_400_000),updatedAt:now};
   }
   return existing;
 }
