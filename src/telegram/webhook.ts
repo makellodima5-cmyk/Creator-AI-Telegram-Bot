@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { createDb } from "../db/client";
 import { creditLedger, jobs, payments, subscriptions, userSessions, users } from "../db/schema";
-import { ensureUser, reserveCredits } from "../billing/credits";
+import { ensureUser, reserveCredits, refundCredits } from "../billing/credits";
 import { answerCallback, answerPreCheckoutQuery, deleteMessage, editMessageText, sendInvoice, sendMessage } from "./api";
 import { mainMenu, persistentMenu, postConfig, pricingKeyboard, repurposeTargets, scriptConfig, planConfig } from "./keyboards";
 import type { Bindings } from "../env";
@@ -126,7 +126,6 @@ async function enqueue(env:Bindings,userId:number,chatId:string,msg:any,cost:num
     await env.AI_QUEUE.send({jobId:inserted.id});
     await db.delete(userSessions).where(eq(userSessions.userId,userId));
   }catch(error){
-    const { refundCredits } = await import("../billing/credits");
     await refundCredits(env,userId,cost,inserted.id);
     await db.update(jobs).set({status:"failed",creditsReserved:0,errorMessage:error instanceof Error?error.message:"queue_send_failed",completedAt:new Date()}).where(eq(jobs.id,inserted.id));
     await editOrSend(env,chatId,msg,"❌ Не удалось поставить задачу в очередь. Credits возвращены.",mainMenu);
