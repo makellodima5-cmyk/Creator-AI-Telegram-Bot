@@ -16,7 +16,7 @@ export async function handlePlanJob(env:Bindings,jobId:number){
   try{
     const result=await new OpenAIProvider(env.OPENAI_API_KEY,env.OPENAI_MODEL_FAST).createPlan(JSON.parse(job.inputJson??"{}") as PlanJobInput);
     await db.update(jobs).set({status:"completed",outputJson:JSON.stringify(result.output),provider:"openai",model:result.model,tokensInput:result.inputTokens,tokensOutput:result.outputTokens,creditsCharged:job.creditsReserved,creditsReserved:0,completedAt:new Date()}).where(eq(jobs.id,jobId));
-    if(job.telegramChatId&&job.telegramMessageId) await editMessageText(env,job.telegramChatId,job.telegramMessageId,format(result.output),planResult(jobId));
+    if(job.telegramChatId&&job.telegramMessageId) await editMessageText(env,job.telegramChatId,job.telegramMessageId,format(result.output),planResult(jobId,result.output.days));
   }catch(e){
     if(job.creditsReserved>0) await refundCredits(env,job.userId,job.creditsReserved,job.id);
     await db.update(jobs).set({status:"failed",creditsReserved:0,errorMessage:e instanceof Error?e.message:"unknown_error",completedAt:new Date()}).where(eq(jobs.id,jobId));
