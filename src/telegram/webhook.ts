@@ -111,27 +111,38 @@ async function handleAction(env:Bindings,userId:number,chatId:string,data:string
 
 async function enqueue(env:Bindings,userId:number,chatId:string,msg:any,cost:number,type:string,input:any){
   if(!input||(type==="repurpose"?!input.material:!input.topic))return;
-  const db=createDb(env),jobId=Date.now();
-  if(!(await reserveCredits(env,userId,cost,jobId)))return editOrSend(env,chatId,msg,"💳 Недостаточно credits. Откройте 💎 Тарифы.",pricingKeyboard);
+  const db=createDb(env);
   const sent=await editOrSend(env,chatId,msg,"⏳ Создаю...");
-  const inserted=await db.insert(jobs).values({userId,type,status:"queued",inputJson:JSON.stringify(input),creditsReserved:cost,telegramChatId:chatId,telegramMessageId:sent?.message_id??msg?.message_id,createdAt:new Date()}).returning({id:jobs.id}).get();
-  await db.delete(userSessions).where(eq(userSessions.userId,userId));
-  await env.AI_QUEUE.send({jobId:inserted.id});
+  const inserted=await db.insert(jobs).values({
+    userId,type,status:"queued",inputJson:JSON.stringify(input),creditsReserved:0,
+    telegramChatId:chatId,telegramMessageId:sent?.message_id??msg?.message_id,createdAt:new Date()
+  }).returning({id:jobs.id}).get();
+  if(!(await reserveCredits(env,userId,cost,inserted.id))){
+    await db.delete(jobs).where(eq(jobs.id,inserted.id));
+    return editOrSend(env,chatId,msg,"💳 Недостаточно credits. Откройте 💎 Тарифы.",pricingKeyboard);
+  }
+  await db.update(jobs).set({creditsReserved:cost}).where(eq(jobs.id,inserted.id));
+  try{
+    await env.AI_QUEUE.send({jobId:inserted.id});
+    await db.delete(userSessions).where(eq(userSessions.userId,userId));
+  }catch(error){
+    const { refundCredits } = await import("../billing/credits");
+    await refundCredits(env,userId,cost,inserted.id);
+    await db.update(jobs).set({status:"failed",creditsReserved:0,errorMessage:error instanceof Error?error.message:"queue_send_failed",completedAt:new Date()}).where(eq(jobs.id,inserted.id));
+    await editOrSend(env,chatId,msg,"❌ Не удалось поставить задачу в очередь. Credits возвращены.",mainMenu);
+  }
 }
 
 async function postAction(env:Bindings,userId:number,chatId:string,msg:any,data:string){
   const id=Number(data.split(":")[2]),action=data.split(":")[1],db=createDb(env),source=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();
   if(!source?.outputJson)return;
-  const o=JSON.parse(source.outputJson),jobId=Date.now();
-  if(!(await reserveCredits(env,userId,1,jobId)))return editOrSend(env,chatId,msg,"💳 Недостаточно credits.",pricingKeyboard);
-  let topic=String(o.body??"");
+  let topic=String(JSON.parse(source.outputJson).body??"");
+  const o=JSON.parse(source.outputJson);
   if(action==="hook")topic="Rewrite this post with a much stronger hook. Existing post:\n"+topic;
   if(action==="shorten")topic="Shorten this post while preserving its main idea and CTA. Existing post:\n"+topic;
   if(action==="regen"){const original=JSON.parse(source.inputJson??"{}");topic=original.topic??topic;}
   const input={topic,platform:o.platform??"telegram",style:o.style??"conversational",length:action==="shorten"?"short":o.length??"short"};
-  const sent=await editOrSend(env,chatId,msg,"⏳ Создаю вариант...");
-  const inserted=await db.insert(jobs).values({userId,type:"post",status:"queued",inputJson:JSON.stringify(input),creditsReserved:1,telegramChatId:chatId,telegramMessageId:sent?.message_id??msg?.message_id,createdAt:new Date()}).returning({id:jobs.id}).get();
-  await env.AI_QUEUE.send({jobId:inserted.id});
+  return enqueue(env,userId,chatId,msg,1,"post",input);
 }
 
 async function showHistory(env:Bindings,userId:number,chatId:string,msg:any){
