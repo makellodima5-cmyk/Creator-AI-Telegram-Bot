@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import type { AppEnv } from "./env";
 
+type QueueJobMessage = {
+  jobId: number;
+};
+
 const app = new Hono<AppEnv>();
 
 app.get("/", (c) =>
@@ -10,20 +14,16 @@ app.get("/", (c) =>
   }),
 );
 
-app.get("/health", (c) =>
-  c.json({
-    ok: true,
-  }),
-);
+app.get("/health", (c) => c.json({ ok: true }));
 
 export default {
   fetch: app.fetch,
-  async queue(batch: MessageBatch<unknown>, env: AppEnv["Bindings"]): Promise<void> {
+  async queue(batch: MessageBatch<QueueJobMessage>): Promise<void> {
     for (const message of batch.messages) {
       console.log("Queue job received", {
         messageId: message.id,
-        body: message.body,
+        jobId: message.body.jobId,
       });
     }
   },
-};
+} satisfies ExportedHandler<AppEnv["Bindings"], Error>;
