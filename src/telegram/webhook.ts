@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { createDb } from "../db/client";
 import { creditLedger, jobs, payments, subscriptions, userSessions, users } from "../db/schema";
-import { ensureUser, reserveCredits } from "../billing/credits";
+import { ensureUser, reserveCredits, refundCredits } from "../billing/credits";
 import { answerCallback, answerPreCheckoutQuery, deleteMessage, editMessageText, sendInvoice, sendMessage } from "./api";
 import { mainMenu, persistentMenu, postConfig, pricingKeyboard, repurposeTargets, scriptConfig, planConfig } from "./keyboards";
 import type { Bindings } from "../env";
@@ -19,7 +19,9 @@ export async function handleWebhook(env:Bindings,update:unknown){
   if(u.pre_checkout_query){
     const q=u.pre_checkout_query, db=createDb(env);
     const payment=await db.select().from(payments).where(eq(payments.invoicePayload,String(q.invoice_payload))).get();
-    await answerPreCheckoutQuery(env,q.id,!!payment&&payment.status==="pending",payment?"": "Платёж больше недоступен.");
+    const payer=await db.select().from(users).where(eq(users.telegramId,String(q.from?.id??""))).get();
+    const valid=!!payment&&payment.status==="pending"&&!!payer&&payment.userId===payer.id&&String(q.currency)==="XTR"&&Number(q.total_amount)===Number(payment.starsAmount);
+    await answerPreCheckoutQuery(env,q.id,valid,valid?"":"Платёж больше недоступен или не совпадает с заказом.");
     return;
   }
   const message=u.message, cb=u.callback_query, from=message?.from??cb?.from;
@@ -101,10 +103,12 @@ async function handleAction(env:Bindings,userId:number,chatId:string,data:string
   if(data==="plan:create")return enqueue(env,userId,chatId,msg,costs.plan,"content_plan",draft);
   if(data==="rep:create")return enqueue(env,userId,chatId,msg,costs.repurpose,"repurpose",draft);
   if(data==="post:back"||data==="script:back"||data==="plan:back"||data==="rep:back"){await db.delete(userSessions).where(eq(userSessions.userId,userId));return editOrSend(env,chatId,msg,"Главное меню",mainMenu);}
-  if(data.startsWith("post:back-result:"))return editOrSend(env,chatId,msg,"Главное меню",mainMenu);
+  if(data.startsWith("post:back-result:"))return sendMessage(env,chatId,"Главное меню",mainMenu);
   if(data.startsWith("post:regen:")||data.startsWith("post:hook:")||data.startsWith("post:shorten:"))return postAction(env,userId,chatId,msg,data);
-  if(data.startsWith("post:script:")){const id=Number(data.split(":")[2]),source=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!source)return;const original=JSON.parse(source.outputJson??"{}"),next={topic:String(original.title)+"\n\n"+String(original.body),platform:"youtube",style:"dynamic",duration:"30"};await saveSession(db,userId,"script","config",next);return editOrSend(env,chatId,msg,renderScriptConfig(next),scriptConfig(next));}
+  if(data.startsWith("post:script:")){const id=Number(data.split(":")[2]),source=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!source)return;const original=JSON.parse(source.outputJson??"{}"),next={topic:String(original.title)+"\n\n"+String(original.body),platform:"youtube",style:"dynamic",duration:"30"};await saveSession(db,userId,"script","config",next);return sendMessage(env,chatId,renderScriptConfig(next),scriptConfig(next));}
   if(data.startsWith("rep:view:"))return viewRepurpose(env,userId,chatId,msg,data);
+  if(data.startsWith("rep:back-result:"))return sendMessage(env,chatId,"Главное меню",mainMenu);
+  if(data.startsWith("script:back-result:")||data.startsWith("plan:back-result:"))return sendMessage(env,chatId,"Главное меню",mainMenu);
   if(data.startsWith("plan:item:"))return viewPlanItem(env,userId,chatId,msg,data);
   if(data.startsWith("plan:create-item:"))return createPlanItem(env,userId,chatId,msg,data);
   if(data.startsWith("history:view:"))return viewHistory(env,userId,chatId,msg,Number(data.split(":")[2]));
@@ -113,27 +117,34 @@ async function handleAction(env:Bindings,userId:number,chatId:string,data:string
 
 async function enqueue(env:Bindings,userId:number,chatId:string,msg:any,cost:number,type:string,input:any){
   if(!input||(type==="repurpose"?!input.material:!input.topic))return;
-  const db=createDb(env),jobId=Date.now();
-  if(!(await reserveCredits(env,userId,cost,jobId)))return editOrSend(env,chatId,msg,"💳 Недостаточно credits. Откройте 💎 Тарифы.",pricingKeyboard);
+  const db=createDb(env);
   const sent=await editOrSend(env,chatId,msg,"⏳ Создаю...");
-  const inserted=await db.insert(jobs).values({userId,type,status:"queued",inputJson:JSON.stringify(input),creditsReserved:cost,telegramChatId:chatId,telegramMessageId:sent?.message_id??msg?.message_id,createdAt:new Date()}).returning({id:jobs.id}).get();
-  await db.delete(userSessions).where(eq(userSessions.userId,userId));
-  await env.AI_QUEUE.send({jobId:inserted.id});
+  const inserted=await db.insert(jobs).values({userId,type,status:"queued",inputJson:JSON.stringify(input),creditsReserved:0,telegramChatId:chatId,telegramMessageId:sent?.message_id??msg?.message_id,createdAt:new Date()}).returning({id:jobs.id}).get();
+  if(!(await reserveCredits(env,userId,cost,inserted.id))){
+    await db.delete(jobs).where(eq(jobs.id,inserted.id));
+    return editOrSend(env,chatId,msg,"💳 Недостаточно credits. Откройте 💎 Тарифы.",pricingKeyboard);
+  }
+  await db.update(jobs).set({creditsReserved:cost}).where(eq(jobs.id,inserted.id));
+  try{
+    await env.AI_QUEUE.send({jobId:inserted.id});
+    await db.delete(userSessions).where(eq(userSessions.userId,userId));
+  }catch(error){
+    await refundCredits(env,userId,cost,inserted.id);
+    await db.update(jobs).set({status:"failed",creditsReserved:0,errorMessage:error instanceof Error?error.message:"queue_send_failed",completedAt:new Date()}).where(eq(jobs.id,inserted.id));
+    await editOrSend(env,chatId,msg,"❌ Не удалось поставить задачу в очередь. Credits возвращены.",mainMenu);
+  }
 }
 
 async function postAction(env:Bindings,userId:number,chatId:string,msg:any,data:string){
   const id=Number(data.split(":")[2]),action=data.split(":")[1],db=createDb(env),source=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();
   if(!source?.outputJson)return;
-  const o=JSON.parse(source.outputJson),jobId=Date.now();
-  if(!(await reserveCredits(env,userId,1,jobId)))return editOrSend(env,chatId,msg,"💳 Недостаточно credits.",pricingKeyboard);
+  const o=JSON.parse(source.outputJson);
   let topic=String(o.body??"");
   if(action==="hook")topic="Rewrite this post with a much stronger hook. Existing post:\n"+topic;
   if(action==="shorten")topic="Shorten this post while preserving its main idea and CTA. Existing post:\n"+topic;
   if(action==="regen"){const original=JSON.parse(source.inputJson??"{}");topic=original.topic??topic;}
   const input={topic,platform:o.platform??"telegram",style:o.style??"conversational",length:action==="shorten"?"short":o.length??"short"};
-  const sent=await editOrSend(env,chatId,msg,"⏳ Создаю вариант...");
-  const inserted=await db.insert(jobs).values({userId,type:"post",status:"queued",inputJson:JSON.stringify(input),creditsReserved:1,telegramChatId:chatId,telegramMessageId:sent?.message_id??msg?.message_id,createdAt:new Date()}).returning({id:jobs.id}).get();
-  await env.AI_QUEUE.send({jobId:inserted.id});
+  return enqueue(env,userId,chatId,msg,1,"post",input);
 }
 
 async function showHistory(env:Bindings,userId:number,chatId:string,msg:any){
