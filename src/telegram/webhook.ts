@@ -105,6 +105,8 @@ async function handleAction(env:Bindings,userId:number,chatId:string,data:string
   if(data.startsWith("post:regen:")||data.startsWith("post:hook:")||data.startsWith("post:shorten:"))return postAction(env,userId,chatId,msg,data);
   if(data.startsWith("post:script:")){const id=Number(data.split(":")[2]),source=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!source)return;const original=JSON.parse(source.outputJson??"{}"),next={topic:String(original.title)+"\n\n"+String(original.body),platform:"youtube",style:"dynamic",duration:"30"};await saveSession(db,userId,"script","config",next);return editOrSend(env,chatId,msg,renderScriptConfig(next),scriptConfig(next));}
   if(data.startsWith("rep:view:"))return viewRepurpose(env,userId,chatId,msg,data);
+  if(data.startsWith("plan:item:"))return viewPlanItem(env,userId,chatId,msg,data);
+  if(data.startsWith("plan:create-item:"))return createPlanItem(env,userId,chatId,msg,data);
   if(data.startsWith("history:view:"))return viewHistory(env,userId,chatId,msg,Number(data.split(":")[2]));
   if(data.startsWith("buy:"))return buy(env,userId,chatId,data);
 }
@@ -142,7 +144,19 @@ async function showHistory(env:Bindings,userId:number,chatId:string,msg:any){
 async function viewHistory(env:Bindings,userId:number,chatId:string,msg:any,id:number){
   const db=createDb(env),job=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!job?.outputJson)return;
   const o=JSON.parse(job.outputJson),text=job.type==="post"?formatPost(o):job.type==="script"?formatScript(o):job.type==="content_plan"?formatPlan(o):"♻️ Repurpose\n\nРезультат сохранён. Открой его из истории по нужному разделу.";
-  return editOrSend(env,chatId,msg,text,{inline_keyboard:[[b("← Назад","menu:history")]]});
+  return editOrSend(env,chatId,msg,text,job.type==="repurpose"?{inline_keyboard:[[b("📱 Telegram",`rep:view:${id}:telegram`),b("📸 Instagram",`rep:view:${id}:instagram`)],[b("🎵 TikTok",`rep:view:${id}:tiktok`),b("▶️ YouTube",`rep:view:${id}:youtube`)],[b("🔥 Hooks",`rep:view:${id}:hooks`),b("🎯 CTA",`rep:view:${id}:cta`)],[b("📅 План",`rep:view:${id}:plan`)],[b("← Назад","menu:history")]]}:{inline_keyboard:[[b("← Назад","menu:history")]]});
+}
+async function viewPlanItem(env:Bindings,userId:number,chatId:string,msg:any,data:string){
+  const [, , id,index]=data.split(":"),db=createDb(env),job=await db.select().from(jobs).where(and(eq(jobs.id,Number(id)),eq(jobs.userId,userId))).get();if(!job?.outputJson)return;
+  const o=JSON.parse(job.outputJson),d=o.days?.[Number(index)];if(!d)return;
+  return editOrSend(env,chatId,msg,"📅 "+d.day+"\\n\\n📝 "+d.title+"\\n\\n"+d.platform+" · "+d.format+"\\n\\n🔥 "+d.hook,{inline_keyboard:[[b("✨ Создать","plan:create-item:"+id+":"+index)],[b("← К плану","history:view:"+id)]]});
+}
+async function createPlanItem(env:Bindings,userId:number,chatId:string,msg:any,data:string){
+  const [, , id,index]=data.split(":"),db=createDb(env),source=await db.select().from(jobs).where(and(eq(jobs.id,Number(id)),eq(jobs.userId,userId))).get();if(!source?.outputJson)return;
+  const o=JSON.parse(source.outputJson),d=o.days?.[Number(index)];if(!d)return;
+  const type=String(d.format).toLowerCase().includes("short")||String(d.platform).toLowerCase().includes("tiktok")||String(d.platform).toLowerCase().includes("youtube")?"script":"post";
+  const cost=type==="script"?2:1,input=type==="script"?{topic:d.title,platform:String(d.platform).toLowerCase().includes("instagram")?"instagram":String(d.platform).toLowerCase().includes("tiktok")?"tiktok":"youtube",style:"dynamic",duration:"30"}:{topic:d.title,platform:String(d.platform).toLowerCase().includes("instagram")?"instagram":"telegram",style:"conversational",length:"short"};
+  return enqueue(env,userId,chatId,msg,cost,type,input);
 }
 async function viewRepurpose(env:Bindings,userId:number,chatId:string,msg:any,data:string){
   const [, , id,key]=data.split(":"),db=createDb(env),job=await db.select().from(jobs).where(and(eq(jobs.id,Number(id)),eq(jobs.userId,userId))).get();if(!job?.outputJson)return;
