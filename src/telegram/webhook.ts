@@ -172,7 +172,7 @@ async function createPlanItem(env:Bindings,userId:number,chatId:string,msg:any,d
 async function viewRepurpose(env:Bindings,userId:number,chatId:string,msg:any,data:string){
   const [, , id,key]=data.split(":"),db=createDb(env),job=await db.select().from(jobs).where(and(eq(jobs.id,Number(id)),eq(jobs.userId,userId))).get();if(!job?.outputJson)return;
   const o=JSON.parse(job.outputJson),value=key==="hooks"?o.hooks.map((x:string,i:number)=>(i+1)+". "+x).join("\n"):key==="plan"?o.plan.map((x:any)=>x.day+" — "+x.title+" · "+x.format).join("\n"):o[key]??"";
-  return editOrSend(env,chatId,msg,"♻️ "+key+"\n\n"+String(value).slice(0,3800),{inline_keyboard:[[b("← Назад","menu:back")]]});
+  return sendMessage(env,chatId,"♻️ "+key+"\n\n"+String(value).slice(0,3800),{inline_keyboard:[[b("← Назад","rep:back-result:"+id)]]});
 }
 async function buy(env:Bindings,userId:number,chatId:string,data:string){
   const plans:any={creator:{stars:99,credits:100,days:30,title:"Creator"},pro:{stars:299,credits:500,days:30,title:"Pro"},credits:{stars:49,credits:50,days:0,title:"50 Credits"}},plan=plans[data.slice(4)];if(!plan)return;
