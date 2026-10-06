@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { postConfig, postResult } from "../src/telegram/keyboards";
+import { planResult, postConfig, postResult } from "../src/telegram/keyboards";
 
 describe("Post Maker", () => {
   it("marks selected options", () => {
@@ -7,6 +7,10 @@ describe("Post Maker", () => {
     expect(labels).toContain("✅ Telegram");
     expect(labels).toContain("✅ Разговорный");
     expect(labels).toContain("✅ Короткая");
+  });
+  it("builds weekly plan navigation", () => {
+    const rows = planResult(7, [{ day: "Пн", title: "AI", format: "Пост" }]).inline_keyboard;
+    expect(rows[0][0].callback_data).toBe("plan:item:7:0");
   });
   it("has result actions", () => {
     const rows = postResult(42,"hello").inline_keyboard;
