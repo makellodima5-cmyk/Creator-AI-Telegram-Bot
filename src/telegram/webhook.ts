@@ -19,7 +19,14 @@ export async function handleWebhook(env:Bindings,update:unknown){
   if(u.pre_checkout_query){
     const q=u.pre_checkout_query, db=createDb(env);
     const payment=await db.select().from(payments).where(eq(payments.invoicePayload,String(q.invoice_payload))).get();
-    await answerPreCheckoutQuery(env,q.id,!!payment&&payment.status==="pending",payment?"": "Платёж больше недоступен.");
+    const payer=await db.select().from(users).where(eq(users.telegramId,String(q.from?.id??""))).get();
+    const valid=!!payment &&
+      payment.status==="pending" &&
+      !!payer &&
+      payment.userId===payer.id &&
+      String(q.currency)==="XTR" &&
+      Number(q.total_amount)===Number(payment.starsAmount);
+    await answerPreCheckoutQuery(env,q.id,valid,valid?"":"Платёж больше недоступен или не совпадает с заказом.");
     return;
   }
   const message=u.message, cb=u.callback_query, from=message?.from??cb?.from;
