@@ -12,6 +12,9 @@ describe("Post Maker", () => {
     const rows = postResult(42).inline_keyboard;
     expect(rows.length).toBe(3);
     expect(rows[0][0].callback_data).toBe("post:regen:42");
+    expect(rows[0][1].callback_data).toBe("post:hook:42");
+    expect(rows[0][2].callback_data).toBe("post:shorten:42");
+    expect(rows[1][0].callback_data).toBe("post:script:42");
     expect(rows[1][1].callback_data).toBe("post:copy:42");
   });
 });
