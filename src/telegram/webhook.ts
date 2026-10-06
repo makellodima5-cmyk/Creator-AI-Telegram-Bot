@@ -269,7 +269,7 @@ async function handleAction(env: Bindings, userId: number, chatId: string, data:
     if (!currentMessage) return;
     const items = repurposeItems(draft.targets ?? ["all"]);
     await saveFeatureSession(db, userId, "repurpose", draft, currentMessage.message_id);
-    const confirmMarkup = repurposeConfirm(items);
+    const confirmMarkup = repurposeConfirm();
     return editMessageText(
       env,
       chatId,
