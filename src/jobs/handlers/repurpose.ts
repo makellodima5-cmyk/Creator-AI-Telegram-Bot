@@ -23,7 +23,7 @@ export async function handleRepurposeJob(env:Bindings,jobId:number){
     throw e;
   }
 }
-export const repurposeResult=(jobId:number)=>({inline_keyboard:[[b("📱 Telegram",`rep:view:${jobId}:telegram`),b("📸 Instagram",`rep:view:${jobId}:instagram`)],[b("🎵 TikTok",`rep:view:${jobId}:tiktok`),b("▶️ YouTube",`rep:view:${jobId}:youtube`)],[b("🔥 5 Hooks",`rep:view:${jobId}:hooks`),b("🎯 CTA",`rep:view:${jobId}:cta`)],[b("📅 План",`rep:view:${jobId}:plan`),b("← Назад","menu:back")]]});
+export const repurposeResult=(jobId:number)=>({inline_keyboard:[[b("📱 Telegram",`rep:view:${jobId}:telegram`),b("📸 Instagram",`rep:view:${jobId}:instagram`)],[b("🎵 TikTok",`rep:view:${jobId}:tiktok`),b("▶️ YouTube",`rep:view:${jobId}:youtube`)],[b("🔥 5 Hooks",`rep:view:${jobId}:hooks`),b("🎯 CTA",`rep:view:${jobId}:cta`)],[b("📅 План",`rep:view:${jobId}:plan`),b("← Назад",`rep:back-result:${jobId}`)]]});
 function b(text:string,data:string){return {text,callback_data:data};}
 function summary(o:any){return `♻️ Готово ✅
 
