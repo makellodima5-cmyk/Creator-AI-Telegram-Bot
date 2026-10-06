@@ -112,6 +112,7 @@ async function handleAction(env:Bindings,userId:number,chatId:string,data:string
   if(data.startsWith("post:regen:")||data.startsWith("post:hook:")||data.startsWith("post:shorten:"))return postAction(env,userId,chatId,msg,data);
   if(data.startsWith("post:script:")){const id=Number(data.split(":")[2]),source=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!source)return;const original=JSON.parse(source.outputJson??"{}"),next={topic:String(original.title)+"\n\n"+String(original.body),platform:"youtube",style:"dynamic",duration:"30"};await saveSession(db,userId,"script","config",next);return sendMessage(env,chatId,renderScriptConfig(next),scriptConfig(next));}
   if(data.startsWith("rep:view:"))return viewRepurpose(env,userId,chatId,msg,data);
+  if(data.startsWith("rep:back-result:"))return sendMessage(env,chatId,"Главное меню",mainMenu);
   if(data.startsWith("history:view:"))return viewHistory(env,userId,chatId,msg,Number(data.split(":")[2]));
   if(data.startsWith("buy:"))return buy(env,userId,chatId,data);
 }
@@ -164,7 +165,7 @@ async function viewHistory(env:Bindings,userId:number,chatId:string,msg:any,id:n
 async function viewRepurpose(env:Bindings,userId:number,chatId:string,msg:any,data:string){
   const [, , id,key]=data.split(":"),db=createDb(env),job=await db.select().from(jobs).where(and(eq(jobs.id,Number(id)),eq(jobs.userId,userId))).get();if(!job?.outputJson)return;
   const o=JSON.parse(job.outputJson),value=key==="hooks"?o.hooks.map((x:string,i:number)=>(i+1)+". "+x).join("\n"):key==="plan"?o.plan.map((x:any)=>x.day+" — "+x.title+" · "+x.format).join("\n"):o[key]??"";
-  return editOrSend(env,chatId,msg,"♻️ "+key+"\n\n"+String(value).slice(0,3800),{inline_keyboard:[[b("← Назад","menu:back")]]});
+  return editOrSend(env,chatId,msg,"♻️ "+key+"\n\n"+String(value).slice(0,3800),{inline_keyboard:[[b("← Назад",`rep:back-result:${id}`)]]});
 }
 async function buy(env:Bindings,userId:number,chatId:string,data:string){
   const plans:any={creator:{stars:99,credits:100,days:30,title:"Creator"},pro:{stars:299,credits:500,days:30,title:"Pro"},credits:{stars:49,credits:50,days:0,title:"50 Credits"}},plan=plans[data.slice(4)];if(!plan)return;
