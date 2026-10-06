@@ -105,6 +105,9 @@ async function handleAction(env:Bindings,userId:number,chatId:string,data:string
   }
   if(data==="post:create")return enqueue(env,userId,chatId,msg,costs.post,"post",draft);
   if(data==="script:create")return enqueue(env,userId,chatId,msg,costs.script,"script",draft);
+  if(data.startsWith("plan:view:"))return viewPlanItem(env,userId,chatId,msg,data);
+  if(data.startsWith("plan:create-item:"))return createPlanItem(env,userId,chatId,msg,data);
+  if(data.startsWith("plan:back-result:"))return sendMessage(env,chatId,"Главное меню",mainMenu);
   if(data==="plan:create")return enqueue(env,userId,chatId,msg,costs.plan,"content_plan",draft);
   if(data==="rep:create")return enqueue(env,userId,chatId,msg,costs.repurpose,"repurpose",draft);
   if(data==="post:back"||data==="script:back"||data==="plan:back"||data==="rep:back"){await db.delete(userSessions).where(eq(userSessions.userId,userId));return editOrSend(env,chatId,msg,"Главное меню",mainMenu);}
@@ -161,6 +164,35 @@ async function viewHistory(env:Bindings,userId:number,chatId:string,msg:any,id:n
   const db=createDb(env),job=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!job?.outputJson)return;
   const o=JSON.parse(job.outputJson),text=job.type==="post"?formatPost(o):job.type==="script"?formatScript(o):job.type==="content_plan"?formatPlan(o):"♻️ Repurpose\n\nРезультат сохранён. Открой его из истории по нужному разделу.";
   return editOrSend(env,chatId,msg,text,{inline_keyboard:[[b("← Назад","menu:history")]]});
+}
+async function viewPlanItem(env:Bindings,userId:number,chatId:string,msg:any,data:string){
+  const [, , idRaw, indexRaw]=data.split(":"), id=Number(idRaw), index=Number(indexRaw), db=createDb(env);
+  const job=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();
+  if(!job?.outputJson)return;
+  const output=JSON.parse(job.outputJson), item=output.days?.[index];
+  if(!item)return;
+  return sendMessage(env,chatId,`${item.day}
+
+📝 ${item.title}
+
+${item.platform} · ${item.format}
+
+🔥 ${item.hook??""}`,{inline_keyboard:[[b("✨ Создать",`plan:create-item:${id}:${index}`)],[b("← К плану",`plan:back-result:${id}`)]]});
+}
+async function createPlanItem(env:Bindings,userId:number,chatId:string,msg:any,data:string){
+  const [, , idRaw, indexRaw]=data.split(":"), id=Number(idRaw), index=Number(indexRaw), db=createDb(env);
+  const job=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();
+  if(!job?.outputJson)return;
+  const output=JSON.parse(job.outputJson), item=output.days?.[index];
+  if(!item)return;
+  const source=JSON.parse(job.inputJson??"{}"), format=String(item.format??"").toLowerCase();
+  const isScript=/short|reel|tiktok|video|сценар/.test(format);
+  if(isScript){
+    const platform=String(item.platform??source.platform??"tiktok").toLowerCase().includes("instagram")?"instagram":String(item.platform??source.platform??"tiktok").toLowerCase().includes("youtube")?"youtube":"tiktok";
+    return enqueue(env,userId,chatId,msg,costs.script,"script",{topic:String(item.title),platform,style:source.style??"dynamic",duration:"30"});
+  }
+  const platform=String(item.platform??source.platform??"telegram").toLowerCase().includes("instagram")?"instagram":String(item.platform??source.platform??"telegram").toLowerCase().includes("tiktok")?"tiktok":String(item.platform??source.platform??"telegram").toLowerCase().includes("youtube")?"youtube":"telegram";
+  return enqueue(env,userId,chatId,msg,costs.post,"post",{topic:String(item.title),platform,style:source.style??"expert",length:"short"});
 }
 async function viewRepurpose(env:Bindings,userId:number,chatId:string,msg:any,data:string){
   const [, , id,key]=data.split(":"),db=createDb(env),job=await db.select().from(jobs).where(and(eq(jobs.id,Number(id)),eq(jobs.userId,userId))).get();if(!job?.outputJson)return;
