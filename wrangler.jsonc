@@ -29,7 +29,7 @@
     ]
   }
 
-  // R2 intentionally not bound yet.
-  // Add when the bucket creator-ai-files exists:
+  // R2 intentionally not bound until bucket creator-ai-files exists.
+  // Then add:
   // "r2_buckets": [{ "binding": "FILES", "bucket_name": "creator-ai-files" }]
 }
