@@ -279,7 +279,7 @@ async function handleAction(env: Bindings, userId: number, chatId: string, data:
     );
   }
 
-  if (data === "rep:confirm-create") return enqueue(env, userId, chatId, null, costs.repurpose, "repurpose", draft);
+  if (data === "rep:confirm-create") return enqueue(env, userId, chatId, msg, costs.repurpose, "repurpose", draft);
   if (data === "rep:back-confirm") {
     if (!draft || session?.flow !== "repurpose") return;
     const currentMessage = messageFromDraft(draft);
