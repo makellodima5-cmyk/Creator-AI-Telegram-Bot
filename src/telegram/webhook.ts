@@ -327,6 +327,10 @@ async function handleAction(env: Bindings, userId: number, chatId: string, data:
   }
 
   if (data.startsWith("rep:view:")) return viewRepurpose(env, userId, chatId, msg, data);
+  if (data.startsWith("rep:view-summary:")) {
+    const id = Number(data.split(":")[2]);
+    return viewHistory(env, userId, chatId, msg, id);
+  }
 
   if (data.startsWith("plan:item:")) return viewPlanItem(env, userId, chatId, msg, data);
   if (data.startsWith("plan:create-item:")) return createPlanItem(env, userId, chatId, msg, data);
