@@ -108,9 +108,9 @@ async function handleAction(env:Bindings,userId:number,chatId:string,data:string
   if(data==="plan:create")return enqueue(env,userId,chatId,msg,costs.plan,"content_plan",draft);
   if(data==="rep:create")return enqueue(env,userId,chatId,msg,costs.repurpose,"repurpose",draft);
   if(data==="post:back"||data==="script:back"||data==="plan:back"||data==="rep:back"){await db.delete(userSessions).where(eq(userSessions.userId,userId));return editOrSend(env,chatId,msg,"Главное меню",mainMenu);}
-  if(data.startsWith("post:back-result:"))return editOrSend(env,chatId,msg,"Главное меню",mainMenu);
+  if(data.startsWith("post:back-result:"))return sendMessage(env,chatId,"Главное меню",mainMenu);
   if(data.startsWith("post:regen:")||data.startsWith("post:hook:")||data.startsWith("post:shorten:"))return postAction(env,userId,chatId,msg,data);
-  if(data.startsWith("post:script:")){const id=Number(data.split(":")[2]),source=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!source)return;const original=JSON.parse(source.outputJson??"{}"),next={topic:String(original.title)+"\n\n"+String(original.body),platform:"youtube",style:"dynamic",duration:"30"};await saveSession(db,userId,"script","config",next);return editOrSend(env,chatId,msg,renderScriptConfig(next),scriptConfig(next));}
+  if(data.startsWith("post:script:")){const id=Number(data.split(":")[2]),source=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!source)return;const original=JSON.parse(source.outputJson??"{}"),next={topic:String(original.title)+"\n\n"+String(original.body),platform:"youtube",style:"dynamic",duration:"30"};await saveSession(db,userId,"script","config",next);return sendMessage(env,chatId,renderScriptConfig(next),scriptConfig(next));}
   if(data.startsWith("rep:view:"))return viewRepurpose(env,userId,chatId,msg,data);
   if(data.startsWith("history:view:"))return viewHistory(env,userId,chatId,msg,Number(data.split(":")[2]));
   if(data.startsWith("buy:"))return buy(env,userId,chatId,data);
