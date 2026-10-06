@@ -76,25 +76,12 @@ export const repurposeTargets=(selected:string[])=>({
   ],
 });
 
-export const repurposeConfirm=(targets:string[])=>{
-  const order:[string,string][]=[
-    ["telegram","📱 Telegram-пост"],
-    ["instagram","📸 Instagram caption"],
-    ["tiktok","🎵 TikTok script"],
-    ["youtube","▶️ YouTube Shorts script"],
-    ["hooks","🔥 5 Hooks"],
-    ["cta","🎯 CTA"],
-    ["plan","📅 Контент на 7 дней"],
-  ];
-  const keys=targets.includes("all")?order.map(([key])=>key):targets;
-  return {
-    inline_keyboard:[
-      [b("🚀 Создать","rep:confirm-create")],
-      [b("← Назад","rep:back-confirm")],
-    ],
-    __items:order.filter(([key])=>keys.includes(key)).map(([,label])=>label),
-  };
-};
+export const repurposeConfirm=()=>({
+  inline_keyboard:[
+    [b("🚀 Создать","rep:confirm-create")],
+    [b("← Назад","rep:back-confirm")],
+  ],
+});
 
 export const postResult=(jobId:number,copyText="")=>({
   inline_keyboard:[
