@@ -3,21 +3,56 @@ import { jobs } from "../../db/schema";
 import { createDb } from "../../db/client";
 import { OpenAIProvider } from "../../ai/openai";
 import { editMessageText } from "../../telegram/api";
-import { postResult } from "../../telegram/keyboards";
+import { postResult, mainMenu } from "../../telegram/keyboards";
+import { refundCredits } from "../../billing/credits";
 import type { Bindings } from "../../env";
 import type { PostJobInput } from "../types";
 
-export async function handlePostJob(env:Bindings,jobId:number){
-  const db=createDb(env); const job=await db.select().from(jobs).where(eq(jobs.id,jobId)).get(); if(!job) throw new Error("job_not_found");
-  const input=JSON.parse(job.inputJson??"{}") as PostJobInput; const model=env.OPENAI_MODEL_FAST; if(!env.OPENAI_API_KEY || !model) throw new Error("openai_not_configured");
-  const provider=new OpenAIProvider(env.OPENAI_API_KEY,model); await db.update(jobs).set({status:"processing",startedAt:new Date(),attempts:(job.attempts??0)+1}).where(eq(jobs.id,jobId));
-  try{
-    const r=await provider.createPost(input); const output=JSON.stringify(r.output); const now=new Date();
-    await db.update(jobs).set({status:"completed",outputJson:output,provider:"openai",model:r.model,tokensInput:r.inputTokens,tokensOutput:r.outputTokens,creditsCharged:job.creditsReserved,completedAt:now,updatedAt:now as never}).where(eq(jobs.id,jobId));
-    if(job.telegramChatId && job.telegramMessageId) await editMessageText(env,job.telegramChatId,job.telegramMessageId,`📝 Готово ✅\\n\\n${r.output.title}\\n\\n${r.output.body}\\n\\n────────────\\n\\n📱 ${r.output.platform}\\n✍️ ${r.output.style}\\n📏 ${r.output.length}`,postResult(jobId));
-  }catch(e){
-    await db.update(jobs).set({status:"failed",errorMessage:e instanceof Error?e.message:"unknown_error",completedAt:new Date()}).where(eq(jobs.id,jobId));
-    if(job.telegramChatId && job.telegramMessageId) await editMessageText(env,job.telegramChatId,job.telegramMessageId,"❌ Не удалось создать пост. Credits не списаны.",undefined);
-    throw e;
+export async function handlePostJob(env: Bindings, jobId: number) {
+  const db = createDb(env);
+  const job = await db.select().from(jobs).where(eq(jobs.id, jobId)).get();
+  if (!job) throw new Error("job_not_found");
+  if (job.status === "completed" || job.status === "failed") return;
+  const input = JSON.parse(job.inputJson ?? "{}") as PostJobInput;
+  if (!env.OPENAI_API_KEY || !env.OPENAI_MODEL_FAST) throw new Error("openai_not_configured");
+
+  await db.update(jobs).set({
+    status: "processing", startedAt: job.startedAt ?? new Date(), attempts: (job.attempts ?? 0) + 1,
+  }).where(eq(jobs.id, jobId));
+
+  try {
+    const result = await new OpenAIProvider(env.OPENAI_API_KEY, env.OPENAI_MODEL_FAST).createPost(input);
+    await db.update(jobs).set({
+      status: "completed", outputJson: JSON.stringify(result.output), provider: "openai",
+      model: result.model, tokensInput: result.inputTokens, tokensOutput: result.outputTokens,
+      creditsCharged: job.creditsReserved, creditsReserved: 0, completedAt: new Date(),
+    }).where(eq(jobs.id, jobId));
+    if (job.telegramChatId && job.telegramMessageId) {
+      await editMessageText(env, job.telegramChatId, job.telegramMessageId, formatResult(result.output), postResult(jobId));
+    }
+  } catch (error) {
+    if (job.creditsReserved > 0) await refundCredits(env, job.userId, job.creditsReserved, job.id);
+    await db.update(jobs).set({
+      status: "failed", creditsReserved: 0, errorMessage: error instanceof Error ? error.message : "unknown_error",
+      completedAt: new Date(),
+    }).where(eq(jobs.id, jobId));
+    if (job.telegramChatId && job.telegramMessageId) {
+      await editMessageText(env, job.telegramChatId, job.telegramMessageId, "❌ Не удалось создать пост. Credits возвращены.", mainMenu);
+    }
+    throw error;
   }
+}
+
+function formatResult(output: {title:string;body:string;platform:string;style:string;length:string}) {
+  return `📝 Готово ✅
+
+${output.title}
+
+${output.body}
+
+────────────
+
+📱 ${output.platform}
+✍️ ${output.style}
+📏 ${output.length}`;
 }
