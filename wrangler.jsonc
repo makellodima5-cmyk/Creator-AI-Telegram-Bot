@@ -3,9 +3,10 @@
   "name": "creator-ai-telegram-bot",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-06",
+  "secrets": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET", "OPENAI_API_KEY"],
   "d1_databases": [{ "binding": "DB", "database_name": "creator-ai-db", "database_id": "85c34a54-3bdb-49ff-838a-2e370f7ccdc6", "migrations_dir": "drizzle" }],
   "queues": {
     "producers": [{ "binding": "AI_QUEUE", "queue": "creator-ai-jobs" }],
-    "consumers": [{ "queue": "creator-ai-jobs", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 3 }]
+    "consumers": [{ "queue": "creator-ai-jobs", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 3, "dead_letter_queue": "creator-ai-jobs-dlq", "retry_delay": 15, "max_concurrency": 5 }]
   }
 }
