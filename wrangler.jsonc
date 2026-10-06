@@ -7,6 +7,6 @@
   "secrets": { "required": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET", "OPENAI_API_KEY"] },
   "queues": {
     "producers": [{ "binding": "AI_QUEUE", "queue": "creator-ai-jobs" }],
-    "consumers": [{ "queue": "creator-ai-jobs", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 3 }]
+    "consumers": [{ "queue": "creator-ai-jobs", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 3, "dead_letter_queue": "creator-ai-jobs-dlq", "retry_delay": 15, "max_concurrency": 5 }]
   }
 }
