@@ -43,3 +43,20 @@ INSERT OR IGNORE INTO pricing(key,type,credits_cost,stars_price,included_credits
 ('credits_100','credit_package',NULL,89,100,NULL,1,unixepoch()*1000,unixepoch()*1000),
 ('credits_250','credit_package',NULL,199,250,NULL,1,unixepoch()*1000,unixepoch()*1000),
 ('credits_500','credit_package',NULL,349,500,NULL,1,unixepoch()*1000,unixepoch()*1000);
+ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user';
+ALTER TABLE users ADD COLUMN tariff_id INTEGER;
+ALTER TABLE users ADD COLUMN generation_lock_job_id INTEGER;
+ALTER TABLE user_sessions ADD COLUMN working_message_id INTEGER;
+ALTER TABLE user_sessions ADD COLUMN working_chat_id TEXT;
+ALTER TABLE user_sessions ADD COLUMN active_job_id INTEGER;
+ALTER TABLE jobs ADD COLUMN source_id INTEGER;
+ALTER TABLE jobs ADD COLUMN selected_outputs_json TEXT;
+ALTER TABLE jobs ADD COLUMN context_json TEXT;
+ALTER TABLE jobs ADD COLUMN idempotency_key TEXT;
+ALTER TABLE jobs ADD COLUMN style_profile_id INTEGER;
+ALTER TABLE jobs ADD COLUMN prompt_version TEXT;
+ALTER TABLE jobs ADD COLUMN result_id INTEGER;
+ALTER TABLE payments ADD COLUMN product_key TEXT;
+ALTER TABLE history ADD COLUMN deleted_at INTEGER;
+ALTER TABLE job_results ADD COLUMN telegram_chat_id TEXT;
+ALTER TABLE job_results ADD COLUMN telegram_message_id INTEGER;
