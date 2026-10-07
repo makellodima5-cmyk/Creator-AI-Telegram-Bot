@@ -7,16 +7,10 @@ CREATE TABLE IF NOT EXISTS content_plan_days (id INTEGER PRIMARY KEY AUTOINCREME
 CREATE TABLE IF NOT EXISTS job_results (id INTEGER PRIMARY KEY AUTOINCREMENT,job_id INTEGER NOT NULL,user_id INTEGER NOT NULL,result_type TEXT NOT NULL,position INTEGER NOT NULL,status TEXT NOT NULL,content_json TEXT,credits_reserved INTEGER NOT NULL DEFAULT 0,credits_charged INTEGER NOT NULL DEFAULT 0,telegram_chat_id TEXT,telegram_message_id INTEGER,error_code TEXT,error_message TEXT,created_at INTEGER NOT NULL,completed_at INTEGER);
 CREATE TABLE IF NOT EXISTS job_attempts (id INTEGER PRIMARY KEY AUTOINCREMENT,job_id INTEGER NOT NULL,attempt_no INTEGER NOT NULL,status TEXT NOT NULL,provider TEXT,model TEXT,input_tokens INTEGER,output_tokens INTEGER,cost_usd_micros INTEGER,duration_ms INTEGER,prompt_version TEXT,error_code TEXT,error_message TEXT,created_at INTEGER NOT NULL,started_at INTEGER,completed_at INTEGER,UNIQUE(job_id,attempt_no));
 CREATE TABLE IF NOT EXISTS deliveries (id INTEGER PRIMARY KEY AUTOINCREMENT,result_id INTEGER NOT NULL,user_id INTEGER NOT NULL,position INTEGER NOT NULL,chat_id TEXT NOT NULL,message_id INTEGER,status TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,next_retry_at INTEGER,last_error TEXT,created_at INTEGER NOT NULL,sent_at INTEGER,UNIQUE(result_id));
-CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,result_id INTEGER NOT NULL,expires_at INTEGER,created_at INTEGER NOT NULL,UNIQUE(user_id,result_id));
+CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,result_id INTEGER NOT NULL,expires_at INTEGER,created_at INTEGER NOT NULL,deleted_at INTEGER,result_type TEXT,title TEXT,UNIQUE(user_id,result_id));
 CREATE TABLE IF NOT EXISTS credit_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,type TEXT NOT NULL,delta INTEGER NOT NULL,balance_after INTEGER NOT NULL,job_id INTEGER,payment_id INTEGER,admin_id INTEGER,reference TEXT,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS update_receipts (update_id TEXT PRIMARY KEY,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,result_id INTEGER NOT NULL,expires_at INTEGER,created_at INTEGER NOT NULL,deleted_at INTEGER,result_type TEXT,title TEXT,UNIQUE(user_id,result_id));
-CREATE INDEX IF NOT EXISTS idx_jobs_active_user ON jobs(user_id,status);
-CREATE INDEX IF NOT EXISTS idx_results_job ON job_results(job_id,status);
-CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status,next_retry_at);
-CREATE INDEX IF NOT EXISTS idx_sources_expiry ON sources(expires_at);
-CREATE INDEX IF NOT EXISTS idx_history_expiry ON history(expires_at);
-CREATE INDEX IF NOT EXISTS idx_transactions_reference ON credit_transactions(reference);
 INSERT OR IGNORE INTO settings(key,value,updated_at) VALUES
 ('job_max_attempts','3',unixepoch()*1000),
 ('source_text_chars','4000',unixepoch()*1000),
@@ -74,3 +68,5 @@ CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status,next_retry
 CREATE INDEX IF NOT EXISTS idx_sources_expiry ON sources(expires_at);
 CREATE INDEX IF NOT EXISTS idx_history_expiry ON history(expires_at);
 CREATE INDEX IF NOT EXISTS idx_transactions_reference ON credit_transactions(reference);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_idempotency ON jobs(user_id,idempotency_key);
