@@ -1,937 +1,103 @@
-import { and, desc, eq } from "drizzle-orm";
-import { createDb } from "../db/client";
-import { creditLedger, jobs, payments, subscriptions, userSessions, users } from "../db/schema";
-import { ensureUser, reserveCredits, refundCredits } from "../billing/credits";
-import { answerCallback, answerPreCheckoutQuery, deleteMessage, editMessageText, sendInvoice, sendMessage } from "./api";
-import {
-  mainMenu,
-  persistentMenu,
-  planConfig,
-  planResult,
-  postConfig,
-  postResult,
-  pricingKeyboard,
-  creditsKeyboard,
-  repurposeConfirm,
-  repurposeResult,
-  repurposeTargets,
-  scriptConfig,
-  scriptResult,
-  settingsKeyboard,
-  languageKeyboard,
-  notificationKeyboard,
-} from "./keyboards";
-import type { Bindings } from "../env";
-import type { TelegramMessage } from "./api";
+import {and,desc,eq} from "drizzle-orm";
+import {createDb} from "../db/client";
+import {creditLedger,jobs,payments,projects,userSessions,users,subscriptions} from "../db/schema";
+import {ensureUser,reserveCredits,refundCredits} from "../billing/credits";
+import {getPrice,getPackage} from "../config";
+import {answerCallback,answerPreCheckoutQuery,deleteMessage,editMessageText,sendInvoice,sendMessage} from "./api";
+import {mainMenu,persistentMenu,postConfig,postResult,pricingKeyboard,creditsKeyboard,repurposeConfirm,repurposeResult,repurposeTargets,scriptConfig,scriptResult,planConfig,planResult,settingsKeyboard,languageKeyboard,notificationKeyboard,errorKeyboard} from "./keyboards";
+import type {Bindings} from "../env";
 
-const defaults = {
-  post: { topic: "", platform: "telegram", style: "conversational", length: "short" },
-  script: { topic: "", platform: "tiktok", style: "dynamic", duration: "30" },
-  plan: { topic: "", goal: "growth", platform: "telegram", style: "expert" },
-  repurpose: { material: "", targets: ["all"] as string[] },
-};
+type Flow="post"|"script"|"plan"|"repurpose";
+const defaults={post:{topic:"",platform:"telegram",style:"conversational",length:"short"},script:{topic:"",platform:"tiktok",style:"dynamic",duration:"30"},plan:{topic:"",goal:"growth",platform:"telegram",style:"expert"},repurpose:{material:"",targets:["all"] as string[]}};
+const menuText=(name:string)=>"🤖 Привет, "+name+"!\n\nТы в Creator AI — пространстве, где одна идея превращается в полноценный\nконтент.\n\nТебе достаточно написать, что ты хочешь рассказать, или отправить уже\nготовый материал.\n\nДальше Creator AI может:\n\n✦ превратить идею в сильный пост ✦ создать сценарий для короткого ролика\n✦ переработать статью, текст, аудио или видео в разные форматы ✦\nсоставить контент-план на 7 дней ✦ адаптировать контент под разные\nплощадки ✦ со временем научиться писать в твоей манере\n\n⚡ Меньше времени на создание. Больше готового контента.\n\nВсё управление — прямо здесь, в Telegram.\n\nЧто создаём сегодня, "+name+"? 👇";
+const entry={post:"✦ Creator AI / Post Maker\n\nПревратим твою мысль в контент, который хочется дочитать.\n\nНапиши тему, идею или просто набросок того, что хочешь сказать.\n\nЯ помогу: — найти сильный Hook — выстроить структуру — раскрыть главную мысль — адаптировать под нужную площадку\n\n💡 Пример: «5 способов использовать AI в Telegram»\n\nНачни с одной идеи. Остальное сделаем вместе.",script:"✦ Creator AI / Script Maker\n\nПревратим твою идею в ролик, который хочется досмотреть.\n\nНапиши тему, идею или просто расскажи, что хочешь донести зрителю.\n\nЯ помогу: — создать сильный Hook с первых секунд — выстроить сценарий и динамику ролика — написать текст для диктора — подобрать идеи для визуала — добавить текст на экран и CTA\n\n💡 Пример: «5 AI-инструментов, которые можно использовать прямо с телефона»\n\nНачни с одной идеи. Сценарий соберём вместе.",repurpose:"✦ Creator AI / Repurpose\n\nПревратим твой готовый материал в контент для разных площадок.\n\nОтправь статью, пост, текст, расшифровку аудио или видео — или просто вставь материал сюда.\n\nЯ помогу: — выделить главные мысли — превратить материал в сильный Telegram-пост — адаптировать его для Instagram и других площадок — создать сценарий для короткого ролика — придумать несколько сильных Hook — добавить CTA под каждый формат\n\n💡 Пример: «Вот моя статья о том, как использовать AI для работы. Сделай из неё пост, сценарий для Reels и 5 Hook.»\n\nОдин материал. Несколько форматов. Больше контента.",plan:"✦ Creator AI / Content Plan\n\nСоздадим контент-план на 7 дней, чтобы тебе не приходилось каждый день думать, что публиковать.\n\nНапиши свою тему, нишу или цель — например, что хочешь продвигать или о чём рассказывать.\n\nЯ помогу: — придумать идеи на каждый день — распределить контент по форматам — добавить сильный Hook к каждой публикации — определить основную мысль и CTA — сохранить баланс между пользой, вовлечением и продвижением\n\n💡 Пример: «Моя тема — AI и Telegram. Хочу вести канал и привлекать новых подписчиков.»\n\n7 дней. 7 идей. Один понятный план действий."};
+const uiState=(kind:string,messageId:number,extra:any={})=>({kind,messageId,...extra});
 
-const costs = { post: 1, script: 2, repurpose: 3, plan: 5 };
-const uiKeys = ["__uiMessageId", "__uiKind"] as const;
-
-type UiKind = "menu" | "flow" | "processing" | "result";
-type FeatureFlow = "post" | "script" | "plan" | "repurpose";
-
-const mainMenuText = "Одна идея → готовый контент\nдля всех твоих площадок.\n\nЧто создадим?";
-
-const prompts = {
-  post:
-    "📝 СОЗДАНИЕ ПОСТА\n\nО чём хочешь рассказать?\n\nНапиши тему или отправь материал.\n\nНапример:\n«5 способов использовать AI в Telegram»\n\n",
-  script:
-    "🎬 СОЗДАНИЕ СЦЕНАРИЯ\n\nО чём ролик?\n\nНапиши идею или отправь материал.\n\nНапример:\n«5 AI-сервисов для телефона»\n\n",
-  repurpose:
-    "♻️ ПЕРЕРАБОТКА\n\nОтправь один материал —\nя превращу его в готовый контент.\n\nПодойдёт:\n• текст\n• статья\n• транскрипция\n• аудио\n• видео\n\n",
-  plan:
-    "📅 КОНТЕНТ-ПЛАН\n\nРасскажи о проекте.\n\nНапример:\n«У меня Telegram-канал\nпро AI, хочу больше подписчиков»\n\n",
-};
-
-export async function handleWebhook(env: Bindings, update: unknown) {
-  const u = update as any;
-
-  if (u.pre_checkout_query) {
-    const q = u.pre_checkout_query;
-    const db = createDb(env);
-    const payment = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.invoicePayload, String(q.invoice_payload)))
-      .get();
-    const payer = await db
-      .select()
-      .from(users)
-      .where(eq(users.telegramId, String(q.from?.id ?? "")))
-      .get();
-    const valid =
-      !!payment &&
-      payment.status === "pending" &&
-      !!payer &&
-      payment.userId === payer.id &&
-      String(q.currency) === "XTR" &&
-      Number(q.total_amount) === Number(payment.starsAmount);
-    await answerPreCheckoutQuery(env, q.id, valid, valid ? "" : "Платёж больше недоступен или не совпадает с заказом.");
-    return;
-  }
-
-  const message = u.message;
-  const cb = u.callback_query;
-  const from = message?.from ?? cb?.from;
-  if (!from) return;
-
-  const chatId = String(message?.chat?.id ?? cb?.message?.chat?.id);
-  const user = await ensureUser(env, String(from.id), from.first_name, from.username);
-  const db = createDb(env);
-
-  if (message?.successful_payment) {
-    await completePayment(env, user.id, message.successful_payment);
-    await openMainMenu(env, user.id, chatId, true);
-    return;
-  }
-
-  if (message?.text === "/start") {
-    await openMainMenu(env, user.id, chatId, true);
-    return;
-  }
-
-  if (message?.text) {
-    const text = message.text.trim();
-    const mapped: Record<string, string> = {
-      "📝 Пост": "menu:post",
-      "🎬 Сценарий": "menu:script",
-      "♻️ Переработка": "menu:repurpose",
-      "📅 Контент-план": "menu:plan",
-      "📅 План": "menu:plan",
-      "👤 Мой стиль": "menu:style",
-      "🕘 История": "menu:history",
-      "💎 Тарифы": "menu:pricing",
-      "⭐ Credits": "menu:credits",
-      "⚙️ Настройки": "menu:settings",
-    };
-
-    if (mapped[text]) {
-      await deleteMessage(env, chatId, message.message_id).catch(() => {});
-      await handleAction(env, user.id, chatId, mapped[text], null);
-      return;
-    }
-
-    const session = await db.select().from(userSessions).where(eq(userSessions.userId, user.id)).get();
-    if (session && (session.step === "topic" || session.step === "material")) {
-      const draft = JSON.parse(session.draftJson ?? "{}");
-      const uiMessageId = Number(draft.__uiMessageId ?? 0);
-
-      if (session.flow === "post") {
-        draft.topic = text.slice(0, Number(env.MAX_INPUT_CHARS ?? 12000));
-        await updateFlowMessage(env, db, user.id, chatId, uiMessageId, "post", draft, renderPostConfig(draft), postConfig(draft));
-        await deleteMessage(env, chatId, message.message_id).catch(() => {});
-        return;
-      }
-
-      if (session.flow === "script") {
-        draft.topic = text.slice(0, Number(env.MAX_INPUT_CHARS ?? 12000));
-        await updateFlowMessage(env, db, user.id, chatId, uiMessageId, "script", draft, renderScriptConfig(draft), scriptConfig(draft));
-        await deleteMessage(env, chatId, message.message_id).catch(() => {});
-        return;
-      }
-
-      if (session.flow === "plan") {
-        draft.topic = text.slice(0, Number(env.MAX_INPUT_CHARS ?? 12000));
-        await updateFlowMessage(env, db, user.id, chatId, uiMessageId, "plan", draft, renderPlanConfig(draft), planConfig(draft));
-        await deleteMessage(env, chatId, message.message_id).catch(() => {});
-        return;
-      }
-
-      if (session.flow === "repurpose") {
-        draft.material = text.slice(0, Number(env.MAX_INPUT_CHARS ?? 12000));
-        await updateFlowMessage(
-          env,
-          db,
-          user.id,
-          chatId,
-          uiMessageId,
-          "repurpose",
-          draft,
-          "♻️ Repurpose\n\nМатериал получен ✅\n\nВыбери, что создать:",
-          repurposeTargets(draft.targets ?? ["all"]),
-        );
-        await deleteMessage(env, chatId, message.message_id).catch(() => {});
-        return;
-      }
-    }
-  }
-
-  if (!cb) return;
-  await answerCallback(env, cb.id);
-  await handleAction(env, user.id, chatId, String(cb.data ?? ""), cb.message);
+export async function handleWebhook(env:Bindings,update:unknown){
+ const u=update as any;
+ if(u.pre_checkout_query){const q=u.pre_checkout_query;const db=createDb(env);const p=await db.select().from(payments).where(eq(payments.invoicePayload,String(q.invoice_payload))).get();const payer=await db.select().from(users).where(eq(users.telegramId,String(q.from?.id??""))).get();const ok=!!p&&p.status==="pending"&&!!payer&&p.userId===payer.id&&String(q.currency)==="XTR"&&Number(q.total_amount)===Number(p.starsAmount);await answerPreCheckoutQuery(env,q.id,ok,ok?undefined:"Платёж больше недоступен или не совпадает с заказом.");return;}
+ const message=u.message,cb=u.callback_query,from=message?.from??cb?.from;if(!from)return;const chatId=String(message?.chat?.id??cb?.message?.chat?.id);const user=await ensureUser(env,String(from.id),from.first_name,from.username);const db=createDb(env);
+ if(message?.successful_payment){await completePayment(env,user.id,message.successful_payment);await openMain(env,user.id,chatId);return;}
+ if(message?.text==="/start"){await openMain(env,user.id,chatId);return;}
+ if(message?.text){const text=message.text.trim();const map:any={"📝 Пост":"menu:post","🎬 Сценарий":"menu:script","♻️ Переработка":"menu:repurpose","📅 Контент-план":"menu:plan","👤 Мой стиль":"menu:style","🕘 История":"menu:history","💎 Тарифы":"menu:pricing","⭐ Credits":"menu:credits","⚙️ Настройки":"menu:settings"};if(map[text]){await deleteMessage(env,chatId,message.message_id).catch(()=>{});await action(env,user.id,chatId,map[text],null);return;}
+  const s=await db.select().from(userSessions).where(eq(userSessions.userId,user.id)).get();
+  if(s&&s.flow==="style"){const d=JSON.parse(s.draftJson??"{}");const examples=Array.isArray(d.examples)?d.examples:[];if(examples.length<20){examples.push(text.slice(0,4000));await db.update(userSessions).set({step:"style_examples",draftJson:JSON.stringify({examples}),updatedAt:new Date()}).where(eq(userSessions.userId,user.id));const keyboard=examples.length>=5?{inline_keyboard:[[{text:"✨ Проанализировать стиль",callback_data:"style:analyze"}],[{text:"← Назад",callback_data:"menu:back"}]]}:{inline_keyboard:[[{text:"← Назад",callback_data:"menu:back"}]]};await sendMessage(env,chatId,"✦ Creator AI / My Style\n\n🔹 Получено: "+examples.length+" / 20\n\n"+(examples.length>=5?"Можешь отправить ещё примеры, чтобы Creator AI точнее понял твою манеру, или запустить анализ уже сейчас.":"После 5 примеров можно будет запустить анализ."),keyboard);}return;}
+  if(s&&["topic","material","config"].includes(s.step)){const d=JSON.parse(s.draftJson??"{}");if(s.flow==="post")d.topic=text.slice(0,12000);else if(s.flow==="script")d.topic=text.slice(0,12000);else if(s.flow==="plan")d.topic=text.slice(0,12000);else if(s.flow==="repurpose")d.material=text.slice(0,4000);await saveSession(db,user.id,s.flow as Flow,d,Number(d.__uiMessageId??0));const mid=Number(d.__uiMessageId??0);if(mid){const screen=s.flow==="post"?renderPost(d):s.flow==="script"?renderScript(d):s.flow==="plan"?renderPlan(d):"♻️ Creator AI / Repurpose\n\nМатериал проанализирован. Теперь выбери, какой контент создать из него.\n\n🔹 Стоимость: динамическая";const markup=s.flow==="post"?postConfig(d):s.flow==="script"?scriptConfig(d):s.flow==="plan"?planConfig(d):repurposeTargets(d.targets);await editMessageText(env,chatId,mid,screen,markup).catch(()=>{});}await deleteMessage(env,chatId,message.message_id).catch(()=>{});return;}}
+ }
+ if(!cb)return;await answerCallback(env,cb.id);await action(env,user.id,chatId,String(cb.data??""),cb.message);
 }
 
-async function handleAction(env: Bindings, userId: number, chatId: string, data: string, msg: any) {
-  const db = createDb(env);
-
-  if (data === "menu:post") {
-    return openFeature(env, db, userId, chatId, msg, "post", defaults.post, prompts.post, postConfig(defaults.post));
-  }
-
-  if (data === "menu:script") {
-    return openFeature(env, db, userId, chatId, msg, "script", defaults.script, prompts.script, scriptConfig(defaults.script));
-  }
-
-  if (data === "menu:plan") {
-    return openFeature(env, db, userId, chatId, msg, "plan", defaults.plan, prompts.plan, planConfig(defaults.plan));
-  }
-
-  if (data === "menu:repurpose") {
-    return openFeature(env, db, userId, chatId, msg, "repurpose", defaults.repurpose, prompts.repurpose, repurposeTargets(defaults.repurpose.targets));
-  }
-
-  if (data === "menu:pricing") {
-    return openScreen(env, db, userId, chatId, msg, "💎 Тарифы Creator AI\n\nВыбери подходящий план.\n\n🆓 FREE\n10 credits / месяц\n\n⭐ CREATOR\n100 credits / месяц\n99 ⭐ / месяц\n\n🔥 PRO\n500 credits / месяц\n299 ⭐ / месяц", pricingKeyboard, "menu");
-  }
-
-  if (data === "menu:credits") {
-    const u = await db.select().from(users).where(eq(users.id, userId)).get();
-    return openScreen(env, db, userId, chatId, msg, "⭐ Credits\n\nБаланс: " + (u?.creditsBalance ?? 0) + "\n\n1 пост = 1 credit\n1 сценарий = 2 credits\nRepurpose = 3 credits\nПлан на 7 дней = 5 credits", pricingKeyboard, "menu");
-  }
-
-  if (data === "menu:history") return showHistory(env, userId, chatId, msg);
-
-  if (data === "menu:style") {
-    return openScreen(
-      env,
-      db,
-      userId,
-      chatId,
-      msg,
-      "👤 Мой стиль\n\nПрофиль голоса анализирует 5–20 прошлых постов.\n\nВ следующем MVP-шаге добавим загрузку примеров.",
-      mainMenu,
-      "menu",
-    );
-  }
-
-  if (data === "menu:settings") {
-    return openScreen(env, db, userId, chatId, msg, "⚙️ Настройки\n\nЯзык: русский\nУведомления: включены", mainMenu, "menu");
-  }
-
-  if (data === "menu:back") return openMainMenu(env, userId, chatId, false);
-
-  const session = await db.select().from(userSessions).where(eq(userSessions.userId, userId)).get();
-  const draft = session?.flow === "ui" ? null : session ? JSON.parse(session.draftJson ?? "{}") : null;
-
-  if (data.startsWith("post:p:") || data.startsWith("post:s:") || data.startsWith("post:l:")) {
-    if (!draft) return;
-    if (data.startsWith("post:p:")) draft.platform = data.slice(7);
-    if (data.startsWith("post:s:")) draft.style = data.slice(7);
-    if (data.startsWith("post:l:")) draft.length = data.slice(7);
-    const currentMessage = messageFromDraft(draft);
-    if (!currentMessage) return;
-    await saveFeatureSession(db, userId, "post", draft, currentMessage.message_id);
-    return editMessageText(env, chatId, currentMessage.message_id, renderPostConfig(draft), postConfig(draft));
-  }
-
-  if (data.startsWith("script:p:") || data.startsWith("script:s:") || data.startsWith("script:d:")) {
-    if (!draft) return;
-    if (data.startsWith("script:p:")) draft.platform = data.slice(9);
-    if (data.startsWith("script:s:")) draft.style = data.slice(9);
-    if (data.startsWith("script:d:")) draft.duration = data.slice(9);
-    const currentMessage = messageFromDraft(draft);
-    if (!currentMessage) return;
-    await saveFeatureSession(db, userId, "script", draft, currentMessage.message_id);
-    return editMessageText(env, chatId, currentMessage.message_id, renderScriptConfig(draft), scriptConfig(draft));
-  }
-
-  if (data.startsWith("plan:g:") || data.startsWith("plan:p:") || data.startsWith("plan:s:")) {
-    if (!draft) return;
-    if (data.startsWith("plan:g:")) draft.goal = data.slice(7);
-    if (data.startsWith("plan:p:")) draft.platform = data.slice(7);
-    if (data.startsWith("plan:s:")) draft.style = data.slice(7);
-    const currentMessage = messageFromDraft(draft);
-    if (!currentMessage) return;
-    await saveFeatureSession(db, userId, "plan", draft, currentMessage.message_id);
-    return editMessageText(env, chatId, currentMessage.message_id, renderPlanConfig(draft), planConfig(draft));
-  }
-
-  if (data.startsWith("rep:target:")) {
-    if (!draft || session?.flow !== "repurpose") return;
-    const target = data.slice(11);
-    draft.targets =
-      target === "all"
-        ? ["all"]
-        : (draft.targets ?? []).filter((x: string) => x !== "all").includes(target)
-          ? (draft.targets ?? []).filter((x: string) => x !== target)
-          : (draft.targets ?? []).filter((x: string) => x !== "all").concat(target);
-    const currentMessage = messageFromDraft(draft);
-    if (!currentMessage) return;
-    await saveFeatureSession(db, userId, "repurpose", draft, currentMessage.message_id);
-    return editMessageText(env, chatId, currentMessage.message_id, "♻️ Repurpose\n\nМатериал получен ✅\n\nВыбери, что создать:", repurposeTargets(draft.targets));
-  }
-
-  if (data === "rep:create") {
-    if (!draft || session?.flow !== "repurpose") return;
-    const currentMessage = messageFromDraft(draft);
-    if (!currentMessage) return;
-    const items = repurposeItems(draft.targets ?? ["all"]);
-    await saveFeatureSession(db, userId, "repurpose", draft, currentMessage.message_id);
-    const confirmMarkup = repurposeConfirm();
-    return editMessageText(
-      env,
-      chatId,
-      currentMessage.message_id,
-      "♻️ Repurpose\n\nБудет создано:\n\n" + items.join("\n") + "\n\nСтоимость:\n3 credits",
-      confirmMarkup,
-    );
-  }
-
-  if (data === "rep:confirm-create") return enqueue(env, userId, chatId, msg, costs.repurpose, "repurpose", draft);
-  if (data === "rep:back-confirm") {
-    if (!draft || session?.flow !== "repurpose") return;
-    const currentMessage = messageFromDraft(draft);
-    if (!currentMessage) return;
-    return editMessageText(env, chatId, currentMessage.message_id, "♻️ Repurpose\n\nМатериал получен ✅\n\nВыбери, что создать:", repurposeTargets(draft.targets ?? ["all"]));
-  }
-
-  if (data === "post:create") return enqueue(env, userId, chatId, msg, costs.post, "post", draft);
-  if (data === "script:create") return enqueue(env, userId, chatId, msg, costs.script, "script", draft);
-  if (data === "plan:create") return enqueue(env, userId, chatId, msg, costs.plan, "content_plan", draft);
-
-  if (data === "post:back" || data === "script:back" || data === "plan:back" || data === "rep:back") {
-    return openMainMenu(env, userId, chatId, false);
-  }
-
-  if (data.startsWith("post:back-result:")) return openMainMenu(env, userId, chatId, true);
-  if (data.startsWith("rep:back-result:")) return openMainMenu(env, userId, chatId, true);
-  if (data.startsWith("script:back-result:") || data.startsWith("plan:back-result:")) return openMainMenu(env, userId, chatId, true);
-
-  if (data.startsWith("post:regen:") || data.startsWith("post:hook:") || data.startsWith("post:shorten:")) {
-    return postAction(env, userId, chatId, msg, data);
-  }
-
-  if (data.startsWith("script:regen:") || data.startsWith("script:hook:") || data.startsWith("script:shorten:")) {
-    return scriptAction(env, userId, chatId, data);
-  }
-
-  if (data.startsWith("post:script:")) {
-    const id = Number(data.split(":")[2]);
-    const source = await db.select().from(jobs).where(and(eq(jobs.id, id), eq(jobs.userId, userId))).get();
-    if (!source) return;
-    const original = JSON.parse(source.outputJson ?? "{}");
-    const next = { topic: String(original.title) + "\n\n" + String(original.body), platform: "youtube", style: "dynamic", duration: "30" };
-    return openFeature(
-      env,
-      db,
-      userId,
-      chatId,
-      null,
-      "script",
-      next,
-      renderScriptConfig(next),
-      scriptConfig(next),
-    );
-  }
-
-  if (data.startsWith("rep:view:")) return viewRepurpose(env, userId, chatId, msg, data);
-  if (data.startsWith("rep:view-summary:")) {
-    const id = Number(data.split(":")[2]);
-    return viewHistory(env, userId, chatId, msg, id);
-  }
-
-  if (data.startsWith("plan:item:")) return viewPlanItem(env, userId, chatId, msg, data);
-  if (data.startsWith("plan:create-item:")) return createPlanItem(env, userId, chatId, msg, data);
-  if (data.startsWith("history:view:")) return viewHistory(env, userId, chatId, msg, Number(data.split(":")[2]));
-  if (data.startsWith("buy:")) return buy(env, userId, chatId, data);
+async function action(env:Bindings,userId:number,chatId:string,data:string,msg:any){
+ const db=createDb(env);
+ const active=await db.select({id:jobs.id}).from(jobs).where(and(eq(jobs.userId,userId),eq(jobs.status,"processing"))).get();
+ if(active&&!["menu:pricing","menu:credits","menu:settings","settings:profile","settings:language","settings:notifications","settings:support","settings:terms","settings:privacy"].includes(data)&&!data.startsWith("menu:")){const state=await db.select().from(userSessions).where(eq(userSessions.userId,userId)).get();const mid=state?Number(JSON.parse(state.draftJson??"{}").messageId??0):0;if(mid)await editMessageText(env,chatId,mid,"⏳ Генерация ещё выполняется…").catch(()=>{});return;}
+ if(data==="menu:back"){return openMain(env,userId,chatId);}
+ if(data==="menu:post")return openFeature(env,db,userId,chatId,"post");
+ if(data==="menu:script")return openFeature(env,db,userId,chatId,"script");
+ if(data==="menu:plan")return openFeature(env,db,userId,chatId,"plan");
+ if(data==="menu:repurpose")return openFeature(env,db,userId,chatId,"repurpose");
+ if(data==="menu:style")return openStyle(env,db,userId,chatId);
+ if(data==="menu:history")return history(env,db,userId,chatId,msg);
+ if(data==="menu:pricing")return screen(env,db,userId,chatId,msg,"💎 CREATOR AI / ТАРИФЫ\n\nВыбирай уровень, который подходит твоему темпу создания контента.\n\n✨ FREE\n10 кредитов в месяц\n🕘 История — по сроку, заданному тарифной конфигурацией\n\n⚡ CREATOR\n99 ⭐ / месяц\n100 кредитов\n\n🚀 PRO\n299 ⭐ / месяц\n500 кредитов\n\nБольше контента. Меньше ограничений.",pricingKeyboard);
+ if(data==="menu:credits"){const u=await db.select().from(users).where(eq(users.id,userId)).get();return screen(env,db,userId,chatId,msg,"💎 CREATOR AI / КРЕДИТЫ\n\nТвой текущий баланс:\n\n🔹 "+(u?.creditsBalance??0)+" кредитов\n\nНе хочешь менять тариф? Просто пополни баланс и продолжай создавать контент.\n\n✨ Выбери пакет кредитов:",creditsKeyboard());}
+ if(data==="menu:settings")return screen(env,db,userId,chatId,msg,"⚙️ Creator AI / Настройки\n\nЗдесь можно изменить основные параметры Creator AI.\n\n👤 Аккаунт 🌐 Язык 🔔 Уведомления 💬 Помощь ⚖️ Условия использования 🛡️ Конфиденциальность",settingsKeyboard);
+ if(data==="settings:language")return screen(env,db,userId,chatId,msg,"🌐 CREATOR AI / ЯЗЫК\n\nВыбери язык интерфейса и общения с Creator AI.\n\n🇷🇺 Русский 🇬🇧 English",languageKeyboard);
+ if(data.startsWith("settings:language:")){await db.update(users).set({language:data.split(":")[2],updatedAt:new Date()}).where(eq(users.id,userId));return action(env,userId,chatId,"menu:settings",msg);}
+ if(data==="settings:notifications"){const u=await db.select().from(users).where(eq(users.id,userId)).get();return screen(env,db,userId,chatId,msg,"🔔 CREATOR AI / УВЕДОМЛЕНИЯ\n\nБудь в курсе новых возможностей Creator AI.\n\n📢 Новости и обновления\nПолучать сообщения о новых функциях, важных изменениях и событиях Creator AI.\n\n"+(u?.notificationsEnabled?"🔔 Уведомления включены":"🔕 Уведомления выключены"),notificationKeyboard(!!u?.notificationsEnabled));}
+ if(data==="settings:toggle-notifications"){const u=await db.select().from(users).where(eq(users.id,userId)).get();await db.update(users).set({notificationsEnabled:!u?.notificationsEnabled,updatedAt:new Date()}).where(eq(users.id,userId));return action(env,userId,chatId,"settings:notifications",msg);}
+ if(data==="settings:profile"){const u=await db.select().from(users).where(eq(users.id,userId)).get();return screen(env,db,userId,chatId,msg,"👤 CREATOR AI / АККАУНТ\n\nТвоя информация в Creator AI.\n\n👤 "+(u?.firstName??"")+"\nID: "+(u?.telegramId??"")+"\n\n🔹 "+(u?.creditsBalance??0)+" кредитов\n💎 "+(u?.plan?.toUpperCase()??"FREE"),settingsKeyboard);}
+ if(data==="settings:support")return screen(env,db,userId,chatId,msg,"💬 Помощь\n\nВозник вопрос или нужна помощь?\n\nНаша поддержка поможет разобраться с Creator AI и ответит на твои вопросы.\n\n💬 Связаться с поддержкой",settingsKeyboard);
+ if(data==="settings:terms")return screen(env,db,userId,chatId,msg,"⚖️ Условия использования\n\nИспользование Creator AI регулируется опубликованными условиями сервиса.",settingsKeyboard);
+ if(data==="settings:privacy")return screen(env,db,userId,chatId,msg,"🛡️ Конфиденциальность\n\nДанные обрабатываются в соответствии с политикой конфиденциальности сервиса.",settingsKeyboard);
+ if(data==="style:analyze")return startStyleAnalysis(env,db,userId,chatId,msg);
+ if(data.startsWith("post:p:")||data.startsWith("post:s:")||data.startsWith("post:l:"))return selectField(env,db,userId,chatId,data,"post",msg);
+ if(data.startsWith("script:p:")||data.startsWith("script:s:")||data.startsWith("script:d:"))return selectField(env,db,userId,chatId,data,"script",msg);
+ if(data.startsWith("plan:g:")||data.startsWith("plan:p:")||data.startsWith("plan:s:"))return selectField(env,db,userId,chatId,data,"plan",msg);
+ if(data.startsWith("rep:target:"))return selectRepurpose(env,db,userId,chatId,data,msg);
+ if(data==="post:create")return createFromSession(env,db,userId,chatId,"post",msg);
+ if(data==="script:create")return createFromSession(env,db,userId,chatId,"script",msg);
+ if(data==="plan:create")return createFromSession(env,db,userId,chatId,"plan",msg);
+ if(data==="rep:create")return screen(env,db,userId,chatId,msg,"♻️ Creator AI / Repurpose\n\nМатериал проанализирован. Теперь выбери, какой контент создать из него.\n\n🔹 Стоимость: "+await repurposeCost(env,JSON.parse((await db.select().from(userSessions).where(eq(userSessions.userId,userId)).get())?.draftJson??"{}")),repurposeConfirm());
+ if(data==="rep:confirm-create")return createFromSession(env,db,userId,chatId,"repurpose",msg);
+ if(data.startsWith("save:")){await db.update(jobs).set({isSaved:true}).where(and(eq(jobs.id,Number(data.split(":")[1])),eq(jobs.userId,userId)));return sendMessage(env,chatId,"⭐ Сохранено в историю.",mainMenu);}
+ if(data.startsWith("retry:"))return retryJob(env,db,userId,chatId,Number(data.split(":")[1]));
+ if(data.startsWith("error:cancel:"))return openMain(env,userId,chatId);
+ if(data.startsWith("post:variant:"))return variant(env,db,userId,chatId,Number(data.split(":")[2]),"post");
+ if(data.startsWith("script:variant:"))return variant(env,db,userId,chatId,Number(data.split(":")[2]),"script");
+ if(data.startsWith("plan:variant:"))return variant(env,db,userId,chatId,Number(data.split(":")[2]),"plan");
+ if(data.startsWith("post:edit:"))return editJob(env,db,userId,chatId,Number(data.split(":")[2]),"post");
+ if(data.startsWith("script:edit:"))return editJob(env,db,userId,chatId,Number(data.split(":")[2]),"script");
+ if(data.startsWith("rep:variant:"))return variant(env,db,userId,chatId,Number(data.split(":")[2]),"repurpose");
+ if(data.startsWith("history:view:"))return viewHistory(env,db,userId,chatId,msg,Number(data.split(":")[2]));
+ if(data.startsWith("rep:view:"))return viewRep(env,db,userId,chatId,Number(data.split(":")[2]),data.split(":")[3]);
+ if(data.startsWith("post:back-result:")||data.startsWith("script:back-result:")||data.startsWith("plan:back-result:")||data.startsWith("rep:back-result:"))return openMain(env,userId,chatId);
 }
 
-async function openMainMenu(env: Bindings, userId: number, chatId: string, preserveResult: boolean) {
-  const db = createDb(env);
-  const state = await getUiState(db, userId);
-
-  if (state && ((preserveResult && state.kind === "result") || state.kind === "processing")) {
-    const sent = await sendMessage(env, chatId, mainMenuText, mainMenu);
-    await setUiState(db, userId, "menu", sent.message_id);
-    if (!state) await sendMessage(env, chatId, "\u2063", persistentMenu);
-    return sent;
-  }
-
-  if (state?.messageId) {
-    try {
-      const edited = await editMessageText(env, chatId, state.messageId, mainMenuText, mainMenu);
-      await setUiState(db, userId, "menu", edited.message_id);
-      return edited;
-    } catch {}
-  }
-
-  const sent = await sendMessage(env, chatId, mainMenuText, mainMenu);
-  await setUiState(db, userId, "menu", sent.message_id);
-  await sendMessage(env, chatId, "\u2063", persistentMenu);
-  return sent;
-}
-
-async function openFeature(
-  env: Bindings,
-  db: any,
-  userId: number,
-  chatId: string,
-  msg: any,
-  flow: FeatureFlow,
-  draft: any,
-  text: string,
-  markup: unknown,
-) {
-  const sent = await openScreen(env, db, userId, chatId, msg, text, markup, "flow");
-  await saveFeatureSession(db, userId, flow, draft, sent.message_id);
-  return sent;
-}
-
-async function openScreen(
-  env: Bindings,
-  db: any,
-  userId: number,
-  chatId: string,
-  msg: any,
-  text: string,
-  markup: unknown,
-  kind: UiKind,
-) {
-  if (msg?.message_id) return editAndKeepState(env, db, userId, chatId, msg.message_id, text, markup, kind);
-
-  const state = await getUiState(db, userId);
-  if (state && state.kind !== "result" && state.kind !== "processing" && state.messageId) {
-    try {
-      return await editAndKeepState(env, db, userId, chatId, state.messageId, text, markup, kind);
-    } catch {}
-  }
-
-  const sent = await sendMessage(env, chatId, text, markup);
-  await setUiState(db, userId, kind, sent.message_id);
-  return sent;
-}
-
-async function editAndKeepState(
-  env: Bindings,
-  db: any,
-  userId: number,
-  chatId: string,
-  messageId: number,
-  text: string,
-  markup: unknown,
-  kind: UiKind,
-) {
-  const edited = await editMessageText(env, chatId, messageId, text, markup);
-  await setUiState(db, userId, kind, edited.message_id);
-  return edited;
-}
-
-async function updateFlowMessage(
-  env: Bindings,
-  db: any,
-  userId: number,
-  chatId: string,
-  messageId: number,
-  flow: FeatureFlow,
-  draft: any,
-  text: string,
-  markup: unknown,
-) {
-  let sent: TelegramMessage;
-  if (messageId) {
-    try {
-      sent = await editMessageText(env, chatId, messageId, text, markup);
-    } catch {
-      sent = await sendMessage(env, chatId, text, markup);
-    }
-  } else {
-    sent = await sendMessage(env, chatId, text, markup);
-  }
-  await saveFeatureSession(db, userId, flow, draft, sent.message_id);
-  return sent;
-}
-
-async function saveFeatureSession(db: any, userId: number, flow: FeatureFlow, draft: any, messageId: number) {
-  const next = { ...draft, __uiMessageId: messageId, __uiKind: "flow" };
-  await db
-    .insert(userSessions)
-    .values({ userId, flow, step: draft.topic || draft.material ? "config" : flow === "repurpose" ? "material" : "topic", draftJson: JSON.stringify(next), updatedAt: new Date() })
-    .onConflictDoUpdate({
-      target: userSessions.userId,
-      set: { flow, step: draft.topic || draft.material ? "config" : flow === "repurpose" ? "material" : "topic", draftJson: JSON.stringify(next), updatedAt: new Date() },
-    });
-}
-
-async function setUiState(db: any, userId: number, kind: UiKind, messageId: number, extra: Record<string, unknown> = {}) {
-  const state = { kind, messageId, ...extra };
-  await db
-    .insert(userSessions)
-    .values({ userId, flow: "ui", step: kind, draftJson: JSON.stringify(state), updatedAt: new Date() })
-    .onConflictDoUpdate({
-      target: userSessions.userId,
-      set: { flow: "ui", step: kind, draftJson: JSON.stringify(state), updatedAt: new Date() },
-    });
-}
-
-async function getUiState(db: any, userId: number): Promise<{ kind: UiKind; messageId: number } | null> {
-  const row = await db.select().from(userSessions).where(eq(userSessions.userId, userId)).get();
-  if (!row || row.flow !== "ui") return null;
-  const state = JSON.parse(row.draftJson ?? "{}");
-  if (!state.messageId || !state.kind) return null;
-  return state;
-}
-
-function messageFromDraft(draft: any): TelegramMessage | null {
-  const messageId = Number(draft.__uiMessageId ?? 0);
-  return messageId ? { message_id: messageId, chat: { id: 0 } } : null;
-}
-
-function stripUi(input: any) {
-  if (!input || typeof input !== "object") return input;
-  const clone = { ...input };
-  for (const key of uiKeys) delete clone[key];
-  return clone;
-}
-
-async function enqueue(env: Bindings, userId: number, chatId: string, msg: any, cost: number, type: string, input: any) {
-  const cleanInput = stripUi(input);
-  if (!cleanInput || (type === "repurpose" ? !cleanInput.material : !cleanInput.topic)) return;
-
-  const db = createDb(env);
-  const sent =
-    msg?.message_id
-      ? await editMessageText(env, chatId, msg.message_id, processingText(type, cleanInput))
-      : await sendMessage(env, chatId, processingText(type, cleanInput));
-
-  const inserted = await db
-    .insert(jobs)
-    .values({
-      userId,
-      type,
-      status: "queued",
-      inputJson: JSON.stringify(cleanInput),
-      creditsReserved: 0,
-      telegramChatId: chatId,
-      telegramMessageId: sent.message_id,
-      createdAt: new Date(),
-    })
-    .returning({ id: jobs.id })
-    .get();
-
-  if (!(await reserveCredits(env, userId, cost, inserted.id))) {
-    await db.delete(jobs).where(eq(jobs.id, inserted.id));
-    await editMessageText(env, chatId, sent.message_id, "💳 Недостаточно credits.\n\nОткрой тарифы, чтобы продолжить.", pricingKeyboard);
-    await setUiState(db, userId, "menu", sent.message_id);
-    return;
-  }
-
-  await db.update(jobs).set({ creditsReserved: cost }).where(eq(jobs.id, inserted.id));
-  await setUiState(db, userId, "processing", sent.message_id, { jobId: inserted.id });
-
-  try {
-    await env.AI_QUEUE.send({ jobId: inserted.id });
-    return;
-  } catch (error) {
-    await refundCredits(env, userId, cost, inserted.id);
-    await db
-      .update(jobs)
-      .set({
-        status: "failed",
-        creditsReserved: 0,
-        errorMessage: error instanceof Error ? error.message : "queue_send_failed",
-        completedAt: new Date(),
-      })
-      .where(eq(jobs.id, inserted.id));
-    await editMessageText(env, chatId, sent.message_id, "❌ Не удалось поставить задачу в очередь.\n\nCredits возвращены.", mainMenu);
-    await setUiState(db, userId, "menu", sent.message_id);
-  }
-}
-
-function processingText(type: string, input: any) {
-  if (type === "post") return "⏳ Создаю пост...\n\n" + platformLabel(input.platform) + "\n· " + styleLabel(input.style) + "\n· " + lengthLabel(input.length);
-  if (type === "script") return "⏳ Создаю сценарий...\n\n" + platformLabel(input.platform) + "\n· " + scriptStyleLabel(input.style) + "\n· " + input.duration + " сек";
-  if (type === "content_plan") return "⏳ Создаю контент-план...\n\n" + platformLabel(input.platform) + "\n· " + planStyleLabel(input.style);
-  return "⏳ Перерабатываю материал...\n\n· 3 credits";
-}
-
-async function postAction(env: Bindings, userId: number, chatId: string, _msg: any, data: string) {
-  const id = Number(data.split(":")[2]);
-  const action = data.split(":")[1];
-  const db = createDb(env);
-  const source = await db.select().from(jobs).where(and(eq(jobs.id, id), eq(jobs.userId, userId))).get();
-  if (!source?.outputJson) return;
-  const o = JSON.parse(source.outputJson);
-  let topic = String(o.body ?? "");
-  if (action === "hook") topic = "Rewrite this post with a much stronger hook. Existing post:\n" + topic;
-  if (action === "shorten") topic = "Shorten this post while preserving its main idea and CTA. Existing post:\n" + topic;
-  if (action === "regen") {
-    const original = JSON.parse(source.inputJson ?? "{}");
-    topic = original.topic ?? topic;
-  }
-  const input = { topic, platform: o.platform ?? "telegram", style: o.style ?? "conversational", length: action === "shorten" ? "short" : o.length ?? "short" };
-  return enqueue(env, userId, chatId, null, 1, "post", input);
-}
-
-async function scriptAction(env: Bindings, userId: number, chatId: string, data: string) {
-  const id = Number(data.split(":")[2]);
-  const action = data.split(":")[1];
-  const db = createDb(env);
-  const source = await db.select().from(jobs).where(and(eq(jobs.id, id), eq(jobs.userId, userId))).get();
-  if (!source?.outputJson) return;
-  const o = JSON.parse(source.outputJson);
-  let topic = String(o.title ?? "");
-  if (action === "hook") topic = "Create a much stronger hook for this script while preserving the topic and structure:\n" + JSON.stringify(o);
-  if (action === "shorten") topic = "Shorten this script while preserving the key points and CTA:\n" + JSON.stringify(o);
-  if (action === "regen") {
-    const original = JSON.parse(source.inputJson ?? "{}");
-    topic = original.topic ?? topic;
-  }
-  return enqueue(
-    env,
-    userId,
-    chatId,
-    null,
-    2,
-    "script",
-    { topic, platform: o.platform ?? "tiktok", style: o.style ?? "dynamic", duration: o.duration ?? "30" },
-  );
-}
-
-async function showHistory(env: Bindings, userId: number, chatId: string, msg: any) {
-  const db = createDb(env);
-  const rows = await db
-    .select()
-    .from(jobs)
-    .where(and(eq(jobs.userId, userId), eq(jobs.status, "completed")))
-    .orderBy(desc(jobs.createdAt))
-    .limit(10);
-
-  const buttons = rows.map((j) => [b(historyLabel(j), `history:view:${j.id}`)]);
-  buttons.push([b("← Назад", "menu:back")]);
-
-  const sent = await openScreen(
-    env,
-    db,
-    userId,
-    chatId,
-    msg,
-    rows.length ? "🕘 История\n\nСегодня" : "🕘 История\n\nСегодня\n\nПока ничего нет.",
-    { inline_keyboard: buttons },
-    "menu",
-  );
-  return sent;
-}
-
-async function viewHistory(env: Bindings, userId: number, chatId: string, msg: any, id: number) {
-  const db = createDb(env);
-  const job = await db.select().from(jobs).where(and(eq(jobs.id, id), eq(jobs.userId, userId))).get();
-  if (!job?.outputJson) return;
-
-  const o = JSON.parse(job.outputJson);
-  const text =
-    job.type === "post"
-      ? formatPost(o)
-      : job.type === "script"
-        ? formatScript(o)
-        : job.type === "content_plan"
-          ? formatPlan(o)
-          : "♻️ Repurpose\n\nРезультат сохранён. Открой его из истории по нужному разделу.";
-
-  const markup =
-    job.type === "repurpose"
-      ? repurposeResult(id)
-      : job.type === "post"
-        ? postResult(id, String(o.title ?? "") + "\n\n" + String(o.body ?? ""))
-        : job.type === "script"
-          ? scriptResult(id, formatScript(o))
-          : job.type === "content_plan"
-            ? planResult(id, o.days ?? [])
-            : mainMenu;
-
-  return openResultScreen(env, db, userId, chatId, msg, text, markup, id);
-}
-
-async function viewPlanItem(env: Bindings, userId: number, chatId: string, msg: any, data: string) {
-  const [, , id, index] = data.split(":");
-  const db = createDb(env);
-  const job = await db.select().from(jobs).where(and(eq(jobs.id, Number(id)), eq(jobs.userId, userId))).get();
-  if (!job?.outputJson) return;
-  const o = JSON.parse(job.outputJson);
-  const d = o.days?.[Number(index)];
-  if (!d) return;
-
-  const sent = await openResultScreen(
-    env,
-    db,
-    userId,
-    chatId,
-    msg,
-    "📅 " + d.day + "\n\n📝 " + d.title + "\n\n" + d.platform + " · " + d.format + "\n\n🔥 " + d.hook,
-    { inline_keyboard: [[b("✨ Создать", "plan:create-item:" + id + ":" + index)], [b("← К плану", "history:view:" + id)]] },
-    Number(id),
-  );
-  return sent;
-}
-
-async function createPlanItem(env: Bindings, userId: number, chatId: string, _msg: any, data: string) {
-  const [, , id, index] = data.split(":");
-  const db = createDb(env);
-  const source = await db.select().from(jobs).where(and(eq(jobs.id, Number(id)), eq(jobs.userId, userId))).get();
-  if (!source?.outputJson) return;
-
-  const o = JSON.parse(source.outputJson);
-  const d = o.days?.[Number(index)];
-  if (!d) return;
-
-  const type = String(d.format).toLowerCase().includes("short") || String(d.platform).toLowerCase().includes("tiktok") || String(d.platform).toLowerCase().includes("youtube") ? "script" : "post";
-  const cost = type === "script" ? 2 : 1;
-  const input =
-    type === "script"
-      ? {
-          topic: d.title,
-          platform: String(d.platform).toLowerCase().includes("instagram") ? "instagram" : String(d.platform).toLowerCase().includes("tiktok") ? "tiktok" : "youtube",
-          style: "dynamic",
-          duration: "30",
-        }
-      : {
-          topic: d.title,
-          platform: String(d.platform).toLowerCase().includes("instagram") ? "instagram" : "telegram",
-          style: "conversational",
-          length: "short",
-        };
-
-  return enqueue(env, userId, chatId, null, cost, type, input);
-}
-
-async function viewRepurpose(env: Bindings, userId: number, chatId: string, _msg: any, data: string) {
-  const [, , id, key] = data.split(":");
-  const db = createDb(env);
-  const job = await db.select().from(jobs).where(and(eq(jobs.id, Number(id)), eq(jobs.userId, userId))).get();
-  if (!job?.outputJson) return;
-
-  const o = JSON.parse(job.outputJson);
-  const value =
-    key === "hooks"
-      ? (o.hooks ?? []).map((x: string, i: number) => i + 1 + ". " + x).join("\n")
-      : key === "plan"
-        ? (o.plan ?? []).map((x: any) => x.day + " — " + x.title + " · " + x.format).join("\n")
-        : o[key] ?? "";
-
-  const sent = await sendMessage(env, chatId, "♻️ " + key + "\n\n" + String(value).slice(0, 3800), {
-    inline_keyboard: [[b("← Назад", "rep:view-summary:" + id)]],
-  });
-  await setUiState(db, userId, "result", sent.message_id, { jobId: id });
-  return sent;
-}
-
-async function buy(env: Bindings, userId: number, chatId: string, data: string) {
-  const plans: any = {
-    creator: { stars: 99, credits: 100, days: 30, title: "Creator" },
-    pro: { stars: 299, credits: 500, days: 30, title: "Pro" },
-    credits: { stars: 49, credits: 50, days: 0, title: "50 Credits" },
-  };
-  const plan = plans[data.slice(4)];
-  if (!plan) return;
-
-  const payload = "creatorai:" + userId + ":" + data.slice(4) + ":" + Date.now();
-  const db = createDb(env);
-  await db.insert(payments).values({
-    userId,
-    provider: "telegram_stars",
-    kind: data.slice(4) === "credits" ? "credits" : "subscription",
-    invoicePayload: payload,
-    currency: "XTR",
-    starsAmount: plan.stars,
-    status: "pending",
-    createdAt: new Date(),
-  });
-  await sendInvoice(env, chatId, plan.title, plan.credits + " credits" + (plan.days ? " for " + plan.days + " days" : ""), payload, plan.stars);
-}
-
-async function completePayment(env: Bindings, userId: number, payment: any) {
-  const db = createDb(env);
-  const row = await db.select().from(payments).where(eq(payments.invoicePayload, String(payment.invoice_payload))).get();
-  if (!row || row.status === "paid") return;
-
-  await db
-    .update(payments)
-    .set({ status: "paid", telegramPaymentChargeId: payment.telegram_payment_charge_id })
-    .where(eq(payments.id, row.id));
-
-  const key = String(row.invoicePayload).split(":")[2];
-  const now = new Date();
-  const grants: any = {
-    creator: { plan: "creator", credits: 100, days: 30 },
-    pro: { plan: "pro", credits: 500, days: 30 },
-    credits: { plan: null, credits: 50, days: 0 },
-  };
-  const grant = grants[key];
-  if (!grant) return;
-
-  const u = await db.select().from(users).where(eq(users.id, userId)).get();
-  if (!u) return;
-
-  const balance = u.creditsBalance + grant.credits;
-  await db.update(users).set({
-    plan: grant.plan ?? u.plan,
-    creditsBalance: balance,
-    creditsResetAt: grant.days ? new Date(now.getTime() + grant.days * 86400000) : u.creditsResetAt,
-    updatedAt: now,
-  }).where(eq(users.id, userId));
-
-  await db.insert(creditLedger).values({
-    userId,
-    delta: grant.credits,
-    balanceAfter: balance,
-    reason: key === "credits" ? "stars_credits" : "subscription_grant",
-    paymentId: row.id,
-    createdAt: now,
-  });
-
-  if (grant.days) {
-    await db.insert(subscriptions).values({
-      userId,
-      plan: grant.plan,
-      provider: "telegram_stars",
-      starsAmount: row.starsAmount,
-      status: "active",
-      currentPeriodStart: now,
-      expiresAt: new Date(now.getTime() + grant.days * 86400000),
-      telegramPaymentChargeId: payment.telegram_payment_charge_id,
-      invoicePayload: row.invoicePayload,
-      isRecurring: false,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
-}
-
-async function openResultScreen(
-  env: Bindings,
-  db: any,
-  userId: number,
-  chatId: string,
-  msg: any,
-  text: string,
-  markup: unknown,
-  jobId: number,
-) {
-  let sent: TelegramMessage;
-  if (msg?.message_id) {
-    sent = await editMessageText(env, chatId, msg.message_id, text, markup);
-  } else {
-    sent = await sendMessage(env, chatId, text, markup);
-  }
-  await setUiState(db, userId, "result", sent.message_id, { jobId });
-  return sent;
-}
-
-function repurposeItems(targets: string[]) {
-  const order: Record<string, string> = {
-    telegram: "📱 Telegram-пост",
-    instagram: "📸 Instagram caption",
-    tiktok: "🎵 TikTok script",
-    youtube: "▶️ YouTube Shorts script",
-    hooks: "🔥 5 Hooks",
-    cta: "🎯 CTA",
-    plan: "📅 Контент на 7 дней",
-  };
-  const keys = targets.includes("all") ? Object.keys(order) : targets;
-  return keys.filter((key) => order[key]).map((key) => order[key]);
-}
-
-function renderPostConfig(d: any) {
-  return (
-    "📝 Post Maker\n\n" +
-    "Тема:\n" +
-    d.topic +
-    "\n\n" +
-    "📱 Площадка\n\n" +
-    "✍️ Стиль\n\n" +
-    "📏 Длина"
-  );
-}
-
-function renderScriptConfig(d: any) {
-  return (
-    "🎬 Script Maker\n\n" +
-    "Тема:\n" +
-    d.topic +
-    "\n\n" +
-    "📱 Площадка\n\n" +
-    "✍️ Стиль\n\n" +
-    "⏱ Длительность"
-  );
-}
-
-function renderPlanConfig(d: any) {
-  return (
-    "📅 Content Plan\n\n" +
-    "Тема:\n" +
-    d.topic +
-    "\n\n" +
-    "🎯 Цель\n\n" +
-    "📱 Площадка\n\n" +
-    "✍️ Стиль"
-  );
-}
-
-function formatPost(o: any) {
-  return ("📝 Готово ✅\n\n" + o.title + "\n\n" + o.body + "\n\n────────────\n\n📱 " + o.platform + "\n😎 " + o.style + "\n⚡ " + o.length).slice(0, 4000);
-}
-
-function formatScript(o: any) {
-  return (
-    "🎬 Сценарий готов ✅\n\n" +
-    o.title +
-    "\n\n🔥 Hook:\n" +
-    o.hook +
-    "\n\n" +
-    "⏱ " +
-    o.duration +
-    "\n\n" +
-    o.scenes.map((s: any) => "[ " + s.time + " ]\n🗣 " + s.spoken + "\n🎥 " + s.visual + "\n📝 " + s.onScreen).join("\n\n") +
-    "\n\n🎯 CTA:\n" +
-    o.cta +
-    "\n\n📱 " +
-    o.platform +
-    " · " +
-    o.style
-  );
-}
-
-function formatPlan(o: any) {
-  return (
-    "📅 План готов ✅\n\n" +
-    o.topic +
-    "\n\n" +
-    o.days.map((d: any) => d.day + "\n📝 " + d.title + "\n" + d.platform + " · " + d.format + "\n🔥 " + d.hook).join("\n\n")
-  );
-}
-
-function historyLabel(j: any) {
-  const input = JSON.parse(j.inputJson ?? "{}");
-  const icon = j.type === "post" ? "📝" : j.type === "script" ? "🎬" : j.type === "repurpose" ? "♻️" : "📅";
-  return icon + " " + String(input.topic ?? input.material ?? "Результат").slice(0, 42) + " · " + j.creditsCharged + " credits";
-}
-
-function platformLabel(platform: string) {
-  return ({ telegram: "Telegram", instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube" } as any)[platform] ?? platform;
-}
-
-function styleLabel(style: string) {
-  return ({ expert: "Экспертный", provocative: "Провокационный", conversational: "Разговорный", news: "Новостной", sales: "Продающий" } as any)[style] ?? style;
-}
-
-function scriptStyleLabel(style: string) {
-  return ({ dynamic: "Динамичный", expert: "Экспертный", conversational: "Разговорный", sales: "Продающий" } as any)[style] ?? style;
-}
-
-function planStyleLabel(style: string) {
-  return ({ expert: "Экспертный", conversational: "Разговорный", dynamic: "Динамичный", sales: "Продающий" } as any)[style] ?? style;
-}
-
-function lengthLabel(length: string) {
-  return ({ short: "Короткий формат", medium: "Средний формат", long: "Длинный формат" } as any)[length] ?? length;
-}
-
-function b(text: string, data: string) {
-  return { text, callback_data: data };
-}
+async function openMain(env:Bindings,userId:number,chatId:string){const db=createDb(env);const u=await db.select().from(users).where(eq(users.id,userId)).get();const name=u?.firstName??"Creator";const state=await db.select().from(userSessions).where(eq(userSessions.userId,userId)).get();const mid=state?Number(JSON.parse(state.draftJson??"{}").messageId??0):0;if(mid&&state?.flow==="ui"){const m=await editMessageText(env,chatId,mid,menuText(name),mainMenu).catch(()=>null);if(m)await setUi(db,userId,"menu",m.message_id);return m;}const m=await sendMessage(env,chatId,menuText(name),mainMenu);await setUi(db,userId,"menu",m.message_id);await sendMessage(env,chatId,"\u2063",persistentMenu);return m;}
+async function openFeature(env:Bindings,db:any,userId:number,chatId:string,flow:Flow){const d:any={...defaults[flow]};d.credits=await getPrice(env,flow==="plan"?"content_plan":flow);const m=await sendMessage(env,chatId,entry[flow],flow==="post"?postConfig(d):flow==="script"?scriptConfig(d):flow==="plan"?planConfig(d):repurposeTargets(d.targets));await saveSession(db,userId,flow,d,m.message_id);return m;}
+async function openStyle(env:Bindings,db:any,userId:number,chatId:string){const m=await sendMessage(env,chatId,"✦ Creator AI / My Style\n\nНаучим Creator AI писать контент в твоей манере.\n\nОтправь свои посты или другие материалы, которые хорошо передают твой стиль.\n\n📚 Можно отправить от 5 до 20 примеров. Отправляй их по одному или несколько подряд.\n\n🔹 Получено: 0 / 20\n\nПосле 5 примеров можно будет запустить анализ.",{inline_keyboard:[[ {text:"← Назад",callback_data:"menu:back"} ]]});await db.insert(userSessions).values({userId,flow:"style",step:"style_examples",draftJson:JSON.stringify({examples:[]}),updatedAt:new Date()}).onConflictDoUpdate({target:userSessions.userId,set:{flow:"style",step:"style_examples",draftJson:JSON.stringify({examples:[]}),updatedAt:new Date()}});return m;}
+async function startStyleAnalysis(env:Bindings,db:any,userId:number,chatId:string,msg:any){const s=await db.select().from(userSessions).where(eq(userSessions.userId,userId)).get();const examples=JSON.parse(s?.draftJson??"{}").examples??[];if(examples.length<5)return;const cost=await getPrice(env,"style_profile");const id=await createJob(env,db,userId,chatId,"style_profile",{examples},cost,msg);return id;}
+async function selectField(env:Bindings,db:any,userId:number,chatId:string,data:string,flow:Flow,msg:any){const s=await db.select().from(userSessions).where(eq(userSessions.userId,userId)).get();if(!s)return;const d=JSON.parse(s.draftJson??"{}");const parts=data.split(":");if(flow==="post"){if(parts[1]==="p")d.platform=parts[2];if(parts[1]==="s")d.style=parts[2];if(parts[1]==="l")d.length=parts[2];}else if(flow==="script"){if(parts[1]==="p")d.platform=parts[2];if(parts[1]==="s")d.style=parts[2];if(parts[1]==="d")d.duration=parts[2];}else{if(parts[1]==="g")d.goal=parts[2];if(parts[1]==="p")d.platform=parts[2];if(parts[1]==="s")d.style=parts[2];}await saveSession(db,userId,flow,d,Number(d.__uiMessageId??msg?.message_id??0));const text=flow==="post"?renderPost(d):flow==="script"?renderScript(d):renderPlan(d);return editMessageText(env,chatId,Number(d.__uiMessageId??msg?.message_id),text,flow==="post"?postConfig(d):flow==="script"?scriptConfig(d):planConfig(d));}
+async function selectRepurpose(env:Bindings,db:any,userId:number,chatId:string,data:string,msg:any){const s=await db.select().from(userSessions).where(eq(userSessions.userId,userId)).get();if(!s)return;const d=JSON.parse(s.draftJson??"{}");const t=data.slice(11);d.targets=t==="all"?["all"]:(d.targets??[]).filter((x:string)=>x!=="all").includes(t)?(d.targets??[]).filter((x:string)=>x!==t):(d.targets??[]).filter((x:string)=>x!=="all").concat(t);await saveSession(db,userId,"repurpose",d,Number(d.__uiMessageId??msg?.message_id??0));return editMessageText(env,chatId,Number(d.__uiMessageId??msg?.message_id), "♻️ Creator AI / Repurpose\n\nМатериал проанализирован. Теперь выбери, какой контент создать из него.\n\n🔹 Стоимость: динамическая",repurposeTargets(d.targets));}
+async function createFromSession(env:Bindings,db:any,userId:number,chatId:string,flow:Flow,msg:any){const s=await db.select().from(userSessions).where(eq(userSessions.userId,userId)).get();if(!s)return;const d=JSON.parse(s.draftJson??"{}");const cost=flow==="repurpose"?await repurposeCost(env,d):await getPrice(env,flow==="plan"?"content_plan":flow);return createJob(env,db,userId,chatId,flow,strip(d),cost,msg);}
+async function createJob(env:Bindings,db:any,userId:number,chatId:string,type:string,input:any,cost:number,msg:any){if(!input||(type==="repurpose"?!input.material:!input.topic)&&type!=="style_profile")return;const active=await db.select({id:jobs.id}).from(jobs).where(and(eq(jobs.userId,userId),eq(jobs.status,"processing"))).get();if(active){await sendMessage(env,chatId,"⏳ Генерация ещё выполняется…");return;}const sent=msg?.message_id?await editMessageText(env,chatId,msg.message_id,processing(type,input)).catch(()=>null):null;const working=sent??await sendMessage(env,chatId,processing(type,input));const row=await db.insert(jobs).values({userId,type,status:"queued",inputJson:JSON.stringify(input),creditsReserved:0,telegramChatId:chatId,telegramMessageId:working.message_id,createdAt:new Date()}).returning({id:jobs.id}).get();if(!(await reserveCredits(env,userId,cost,row.id))){await db.delete(jobs).where(eq(jobs.id,row.id));await editMessageText(env,chatId,working.message_id,"💳 Недостаточно credits.\n\nВыбери, что сделать дальше.",creditsKeyboard());return;}await db.update(jobs).set({creditsReserved:cost}).where(eq(jobs.id,row.id));await setUi(db,userId,"processing",working.message_id,{jobId:row.id});try{await env.AI_QUEUE.send({jobId:row.id});}catch(e){await refundCredits(env,userId,cost,row.id);await db.update(jobs).set({status:"failed",creditsReserved:0,errorMessage:e instanceof Error?e.message:"queue_error",completedAt:new Date()}).where(eq(jobs.id,row.id));await editMessageText(env,chatId,working.message_id,"❌ Не удалось запустить генерацию.\n\nCredits возвращены.",errorKeyboard(row.id));}}
+async function retryJob(env:Bindings,db:any,userId:number,chatId:string,id:number){const job=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!job||job.status!=="failed")return;const input=JSON.parse(job.inputJson??"{}");const cost=await getPrice(env,job.type==="content_plan"?"content_plan":job.type as any).catch(()=>1);return createJob(env,db,userId,chatId,job.type,input,cost,null);}
+async function variant(env:Bindings,db:any,userId:number,chatId:string,id:number,type:string){const job=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!job)return;const input=JSON.parse(job.inputJson??"{}");const key=type==="plan"?"plan_variant":type==="repurpose"?"repurpose_variant":type+"_variant";const cost=await getPrice(env,key as any);return createJob(env,db,userId,chatId,type==="plan"?"content_plan":type,input,cost,null);}
+async function editJob(env:Bindings,db:any,userId:number,chatId:string,id:number,type:string){const job=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!job)return;const d=JSON.parse(job.inputJson??"{}");d.__sourceJobId=id;const m=await sendMessage(env,chatId,type==="post"?renderPost(d):renderScript(d),type==="post"?postConfig(d):scriptConfig(d));await saveSession(db,userId,type,d,m.message_id);}
+async function history(env:Bindings,db:any,userId:number,chatId:string,msg:any){const rows=await db.select().from(jobs).where(and(eq(jobs.userId,userId),eq(jobs.status,"completed"),eq(jobs.isSaved,true))).orderBy(desc(jobs.createdAt)).limit(20);const buttons=rows.map(j=>[{text:label(j),callback_data:"history:view:"+j.id}]);buttons.push([{text:"← Назад",callback_data:"menu:back"}]);return screen(env,db,userId,chatId,msg,rows.length?"✦ CREATOR AI / HISTORY\n\nТвоя личная библиотека важных материалов.":"✦ CREATOR AI / HISTORY\n\nПока ничего не сохранено.",{inline_keyboard:buttons});}
+async function viewHistory(env:Bindings,db:any,userId:number,chatId:string,msg:any,id:number){const j=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId),eq(jobs.isSaved,true))).get();if(!j?.outputJson)return;const o=JSON.parse(j.outputJson);const text=j.type==="post"?formatPost(o):j.type==="script"?formatScript(o):j.type==="content_plan"?formatPlan(o):"♻️ Creator AI / Repurpose\n\nРезультат сохранён.";const markup=j.type==="post"?postResult(id,String(o.title)+"\n\n"+String(o.body)):j.type==="script"?scriptResult(id,formatScript(o)):j.type==="content_plan"?planResult(id,o.days??[]):repurposeResult(id);return screen(env,db,userId,chatId,msg,text,markup);}
+async function viewRep(env:Bindings,db:any,userId:number,chatId:string,id:number,key:string){const j=await db.select().from(jobs).where(and(eq(jobs.id,id),eq(jobs.userId,userId))).get();if(!j?.outputJson)return;const o=JSON.parse(j.outputJson);let v=key==="hooks"?(o.hooks??[]).map((x:string,i:number)=>(i+1)+". "+x).join("\n"):key==="plan"?(o.plan??[]).map((x:any)=>x.day+" — "+x.title+" · "+x.format).join("\n"):o[key]??"";return sendMessage(env,chatId,"♻️ "+key+"\n\n"+String(v).slice(0,3900),{inline_keyboard:[[{text:"← Назад",callback_data:"history:view:"+id}]]});}
+async function completePayment(env:Bindings,userId:number,p:any){const db=createDb(env);const row=await db.select().from(payments).where(eq(payments.invoicePayload,String(p.invoice_payload))).get();if(!row||row.status==="paid")return;await db.update(payments).set({status:"paid",telegramPaymentChargeId:p.telegram_payment_charge_id}).where(eq(payments.id,row.id));const parts=String(row.invoicePayload).split(":");const key=parts[2];if(key.startsWith("credits_")){const pkg=await getPackage(env,Number(key.slice(8)));const u=await db.select().from(users).where(eq(users.id,userId)).get();if(!u)return;const bal=u.creditsBalance+pkg.credits;await db.update(users).set({creditsBalance:bal,updatedAt:new Date()}).where(eq(users.id,userId));await db.insert(creditLedger).values({userId,delta:pkg.credits,balanceAfter:bal,reason:"stars_credits",paymentId:row.id,createdAt:new Date()});return;}const grants:any={creator:{plan:"creator",credits:100},pro:{plan:"pro",credits:500}};const g=grants[key];if(!g)return;const u=await db.select().from(users).where(eq(users.id,userId)).get();if(!u)return;const now=new Date(),expires=new Date(now.getTime()+30*86400000),bal=u.creditsBalance+g.credits;await db.update(users).set({plan:g.plan,creditsBalance:bal,creditsResetAt:expires,updatedAt:now}).where(eq(users.id,userId));await db.insert(creditLedger).values({userId,delta:g.credits,balanceAfter:bal,reason:"subscription_grant",paymentId:row.id,createdAt:now});await db.insert(subscriptions).values({userId,plan:g.plan,provider:"telegram_stars",starsAmount:row.starsAmount,status:"active",currentPeriodStart:now,expiresAt:expires,telegramPaymentChargeId:p.telegram_payment_charge_id,invoicePayload:row.invoicePayload,isRecurring:false,createdAt:now,updatedAt:now});}
+async function screen(env:Bindings,db:any,userId:number,chatId:string,msg:any,text:string,markup:any){if(msg?.message_id){await editMessageText(env,chatId,msg.message_id,text,markup).catch(()=>null);await setUi(db,userId,"menu",msg.message_id);return;}const m=await sendMessage(env,chatId,text,markup);await setUi(db,userId,"menu",m.message_id);return m;}
+async function setUi(db:any,userId:number,kind:string,messageId:number,extra:any={}){await db.insert(userSessions).values({userId,flow:"ui",step:kind,draftJson:JSON.stringify(uiState(kind,messageId,extra)),updatedAt:new Date()}).onConflictDoUpdate({target:userSessions.userId,set:{flow:"ui",step:kind,draftJson:JSON.stringify(uiState(kind,messageId,extra)),updatedAt:new Date()}});}
+async function saveSession(db:any,userId:number,flow:Flow,d:any,messageId:number){d.__uiMessageId=messageId;await db.insert(userSessions).values({userId,flow,step:d.topic||d.material?"config":"topic",draftJson:JSON.stringify(d),updatedAt:new Date()}).onConflictDoUpdate({target:userSessions.userId,set:{flow,step:d.topic||d.material?"config":"topic",draftJson:JSON.stringify(d),updatedAt:new Date()}});}
+const strip=(d:any)=>{const x={...d};delete x.__uiMessageId;delete x.__sourceJobId;return x;};
+const renderPost=(d:any)=>"✦ Creator AI / Post Maker\n\nТвоя идея готова. Теперь настроим, как она будет выглядеть.\n\n🔹 Стоимость: "+(d.credits??"—")+"\n\n📱 Площадка\n\n🎨 Стиль\n\n📏 Размер";
+const renderScript=(d:any)=>"🎬 Creator AI / Script Maker\n\nВыбери, каким будет твой ролик.\n\n🔹 Стоимость: "+(d.credits??"—")+"\n\n📱 Формат\n\n🎨 Стиль\n\n⏱️ Длительность";
+const renderPlan=(d:any)=>"📅 Creator AI / Content Plan\n\nНастрой параметры контент-плана.\n\n🔹 Стоимость: "+(d.credits??"—")+"\n\n🎯 Цель\n\n📱 Площадка\n\n🎨 Стиль";
+const processing=(type:string,input:any)=>type==="post"?"⏳ Создаю пост...":type==="script"?"⏳ Создаю сценарий...":type==="content_plan"?"⏳ Создаю контент-план...":type==="style_profile"?"⏳ Анализирую твой стиль...":"⏳ Перерабатываю материал...";
+async function repurposeCost(env:Bindings,d:any){if((d.targets??["all"]).includes("all"))return await getPrice(env,"repurpose");let total=0;for(const t of d.targets??[]){const key=("repurpose_"+t) as any;total+=await getPrice(env,key);}return total;}
+const formatPost=(o:any)=>("✦ CREATOR AI / POST MAKER\n\n🚀 Пост готов\n\n"+o.title+"\n\n"+o.body).slice(0,4000);
+const formatScript=(o:any)=>("🎬 Creator AI / Script Maker\n\n🚀 Сценарий готов\n\n"+o.title+"\n\n🔥 Hook:\n"+o.hook+"\n\n⏱️ "+o.duration+"\n\n"+(o.scenes??[]).map((s:any)=>"[ "+s.time+" ]\n🗣 "+s.spoken+"\n🎥 "+s.visual+"\n📝 "+s.onScreen).join("\n\n")+"\n\n🎯 CTA:\n"+o.cta).slice(0,4000);
+const formatPlan=(o:any)=>("📅 Creator AI / Content Plan\n\n🚀 План готов\n\n"+o.topic+"\n\n"+(o.days??[]).map((d:any)=>d.day+"\n📝 "+d.title+"\n"+d.platform+" · "+d.format+"\n🔥 "+d.hook+"\n💡 "+d.mainThought+"\n🎯 "+d.cta).join("\n\n")).slice(0,4000);
+const label=(j:any)=>{const i=JSON.parse(j.inputJson??"{}");const icon=j.type==="post"?"📝":j.type==="script"?"🎬":j.type==="repurpose"?"♻️":"📅";return icon+" "+String(i.topic??i.material??"Результат").slice(0,45);};
