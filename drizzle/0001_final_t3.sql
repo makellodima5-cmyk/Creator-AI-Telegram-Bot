@@ -31,7 +31,7 @@ INSERT OR IGNORE INTO settings(key,value,updated_at) VALUES
 ('history_duration_free','7',unixepoch()*1000),
 ('history_duration_creator','30',unixepoch()*1000),
 ('history_duration_pro','90',unixepoch()*1000),
-('model_routes','{"post":"fast","script":"smart","content_plan":"smart","source_analysis":"smart","repurpose_telegram":"fast","repurpose_instagram":"fast","repurpose_tiktok":"smart","repurpose_youtube":"smart","repurpose_hooks":"fast","repurpose_cta":"fast","repurpose_plan":"smart","style_profile":"smart"}',unixepoch()*1000),
+('model_routes','{"post":"fast","script":"fast","content_plan":"fast","source_analysis":"smart","repurpose_telegram":"fast","repurpose_instagram":"fast","repurpose_tiktok":"fast","repurpose_youtube":"fast","repurpose_hooks":"fast","repurpose_cta":"fast","repurpose_plan":"fast","style_profile":"fast"}',unixepoch()*1000),
 ('model_costs','{}',unixepoch()*1000);
 INSERT OR IGNORE INTO pricing(key,type,credits_cost,stars_price,included_credits,duration_days,is_active,created_at,updated_at) VALUES
 ('post_edit','feature',1,NULL,NULL,NULL,1,unixepoch()*1000,unixepoch()*1000),
