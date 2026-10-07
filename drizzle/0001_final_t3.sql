@@ -58,3 +58,7 @@ ALTER TABLE jobs ADD COLUMN prompt_version TEXT;
 ALTER TABLE jobs ADD COLUMN result_id INTEGER;
 ALTER TABLE payments ADD COLUMN product_key TEXT;
 ALTER TABLE history ADD COLUMN deleted_at INTEGER;
+
+ALTER TABLE files ADD COLUMN source_id INTEGER;
+ALTER TABLE history ADD COLUMN result_type TEXT;
+ALTER TABLE history ADD COLUMN title TEXT;
