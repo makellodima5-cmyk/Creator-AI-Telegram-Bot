@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS deliveries (id INTEGER PRIMARY KEY AUTOINCREMENT,resu
 CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,result_id INTEGER NOT NULL,expires_at INTEGER,created_at INTEGER NOT NULL,UNIQUE(user_id,result_id));
 CREATE TABLE IF NOT EXISTS credit_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,type TEXT NOT NULL,delta INTEGER NOT NULL,balance_after INTEGER NOT NULL,job_id INTEGER,payment_id INTEGER,admin_id INTEGER,reference TEXT,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS update_receipts (update_id TEXT PRIMARY KEY,created_at INTEGER NOT NULL);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_idempotency ON jobs(user_id,idempotency_key);
+CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,result_id INTEGER NOT NULL,expires_at INTEGER,created_at INTEGER NOT NULL,deleted_at INTEGER,result_type TEXT,title TEXT,UNIQUE(user_id,result_id));
 CREATE INDEX IF NOT EXISTS idx_jobs_active_user ON jobs(user_id,status);
 CREATE INDEX IF NOT EXISTS idx_results_job ON job_results(job_id,status);
 CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status,next_retry_at);
@@ -65,8 +65,12 @@ ALTER TABLE jobs ADD COLUMN style_profile_id INTEGER;
 ALTER TABLE jobs ADD COLUMN prompt_version TEXT;
 ALTER TABLE jobs ADD COLUMN result_id INTEGER;
 ALTER TABLE payments ADD COLUMN product_key TEXT;
-ALTER TABLE history ADD COLUMN deleted_at INTEGER;
-
 ALTER TABLE files ADD COLUMN source_id INTEGER;
-ALTER TABLE history ADD COLUMN result_type TEXT;
-ALTER TABLE history ADD COLUMN title TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_idempotency ON jobs(user_id,idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_jobs_active_user ON jobs(user_id,status);
+CREATE INDEX IF NOT EXISTS idx_results_job ON job_results(job_id,status);
+CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status,next_retry_at);
+CREATE INDEX IF NOT EXISTS idx_sources_expiry ON sources(expires_at);
+CREATE INDEX IF NOT EXISTS idx_history_expiry ON history(expires_at);
+CREATE INDEX IF NOT EXISTS idx_transactions_reference ON credit_transactions(reference);
