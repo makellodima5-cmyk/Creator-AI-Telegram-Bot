@@ -5,9 +5,33 @@ export type ScriptDraft={topic:string;platform:string;style:string;duration:stri
 export type PlanDraft={topic:string;goal:string;platform:string;style:string;credits?:number};
 export const mainMenu={inline_keyboard:[[b("📝 Пост","menu:post"),b("🎬 Сценарий","menu:script"),b("♻️ Переработка","menu:repurpose")],[b("📅 Контент-план","menu:plan"),b("👤 Мой стиль","menu:style"),b("🕘 История","menu:history")],[b("💎 Тарифы","menu:pricing"),b("⭐ Credits","menu:credits"),b("⚙️ Настройки","menu:settings")]]};
 export const persistentMenu={keyboard:[[{text:"📝 Пост"},{text:"🎬 Сценарий"},{text:"♻️ Переработка"}],[{text:"📅 Контент-план"},{text:"🕘 История"},{text:"💎 Тарифы"}],[{text:"⭐ Credits"},{text:"⚙️ Настройки"}]],resize_keyboard:true,is_persistent:true};
-export const postConfig=(d:PostDraft)=>({inline_keyboard:[[b("📱 Площадка","cfg:post:platform"),b("🎨 Стиль","cfg:post:style"),b("📏 Размер","cfg:post:length")],[b("📋 "+d.platform.toUpperCase()+" · "+d.style+" · "+d.length,"cfgback:post")],[b("🚀 Создать пост","create"),b("❌ Отмена","cancel")]]});
-export const scriptConfig=(d:ScriptDraft)=>({inline_keyboard:[[b("📱 Формат","cfg:script:platform"),b("🎨 Стиль","cfg:script:style"),b("⏱️ Длительность","cfg:script:duration")],[b("📋 "+d.platform.toUpperCase()+" · "+d.style+" · "+d.duration+" сек","cfgback:script")],[b("🚀 Создать сценарий","create"),b("❌ Отмена","cancel")]]});
-export const planConfig=(d:PlanDraft)=>({inline_keyboard:[[b("🎯 Цель","cfg:plan:goal"),b("📱 Площадка","cfg:plan:platform"),b("🎨 Стиль","cfg:plan:style")],[b("📋 "+d.goal+" · "+d.platform+" · "+d.style,"cfgback:plan")],[b("🚀 Создать план","create"),b("❌ Отмена","cancel")]]});
+export const postConfig=(d:PostDraft)=>({inline_keyboard:[
+ [mark(d.platform==="telegram","📱 Telegram","sel:telegram"),mark(d.platform==="instagram","📸 Instagram","sel:instagram")],
+ [mark(d.platform==="tiktok","🎵 TikTok","sel:tiktok"),mark(d.platform==="youtube","▶️ YouTube","sel:youtube")],
+ [mark(d.style==="expert","💼 Экспертный","sel:expert"),mark(d.style==="provocative","🔥 Провокационный","sel:provocative")],
+ [mark(d.style==="conversational","😎 Разговорный","sel:conversational"),mark(d.style==="news","📰 Новостной","sel:news")],
+ [mark(d.style==="sales","💰 Продающий","sel:sales")],
+ [mark(d.length==="short","⚡ Короткая","sel:short"),mark(d.length==="medium","📝 Средняя","sel:medium")],
+ [mark(d.length==="long","📚 Длинная","sel:long")],
+ [b("🚀 Создать","create")],
+ [b("← Назад","back")]
+]});
+export const scriptConfig=(d:ScriptDraft)=>({inline_keyboard:[
+ [mark(d.platform==="tiktok","🎵 TikTok","sel:tiktok"),mark(d.platform==="instagram","📸 Reels","sel:instagram")],
+ [mark(d.platform==="youtube","▶️ YouTube Shorts","sel:youtube"),mark(d.style==="dynamic","⚡ Динамичная","sel:dynamic")],
+ [mark(d.duration==="15","15 сек","sel:15"),mark(d.duration==="30","30 сек","sel:30"),mark(d.duration==="45","45 сек","sel:45"),mark(d.duration==="60","60 сек","sel:60")],
+ [b("🚀 Создать","create")],
+ [b("← Назад","back")]
+]});
+export const planConfig=(d:PlanDraft)=>({inline_keyboard:[
+ [mark(d.goal==="growth","📈 Рост","sel:growth"),mark(d.goal==="sales","💰 Продажи","sel:sales")],
+ [mark(d.goal==="engagement","❤️ Вовлечение","sel:engagement"),mark(d.goal==="expertise","🧠 Экспертность","sel:expertise")],
+ [mark(d.platform==="telegram","📱 Telegram","sel:telegram"),mark(d.platform==="instagram","📸 Instagram","sel:instagram")],
+ [mark(d.platform==="tiktok","🎵 TikTok","sel:tiktok"),mark(d.platform==="youtube","▶️ YouTube","sel:youtube")],
+ [mark(d.style==="expert","💼 Экспертный","sel:expert"),mark(d.style==="conversational","😎 Разговорный","sel:conversational")],
+ [mark(d.style==="news","📰 Новостной","sel:news"),mark(d.style==="sales","💰 Продающий","sel:sales")],
+ [b("🚀 Создать план","create")],[b("← Назад","back")]
+]});
 export const optionKeyboard=(options:{text:string;data:string}[],back:string)=>{const rows:any[][]=[];for(let i=0;i<options.length;i+=2)rows.push(options.slice(i,i+2).map(x=>b(x.text,x.data)));rows.push([b("← Назад",back)]);return{inline_keyboard:rows}};
 export const repurposeTargets=(selected:string[],_price:number)=>({inline_keyboard:[[mark(selected.includes("telegram"),"📱 Telegram","target:telegram"),mark(selected.includes("instagram"),"📸 Instagram","target:instagram"),mark(selected.includes("tiktok"),"🎵 TikTok","target:tiktok")],[mark(selected.includes("youtube"),"▶️ YouTube Shorts","target:youtube"),mark(selected.includes("hooks"),"🔥 5 Hook","target:hooks"),mark(selected.includes("cta"),"🎯 3 CTA","target:cta")],[mark(selected.includes("plan"),"📅 Контент на неделю","target:plan"),b("🚀 Создать контент","create"),b("❌ Отмена","cancel")]]});
 export const postResult=(id:number)=>({inline_keyboard:[[b("📋 Скопировать","copy:"+id),b("✏️ Изменить","edit:"+id)],[b("🔄 Другой вариант","variant:"+id),b("⭐ Сохранить в историю","save:"+id)]]});
