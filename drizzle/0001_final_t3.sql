@@ -19,6 +19,13 @@ CREATE INDEX IF NOT EXISTS idx_history_expiry ON history(expires_at);
 CREATE INDEX IF NOT EXISTS idx_transactions_reference ON credit_transactions(reference);
 INSERT OR IGNORE INTO settings(key,value,updated_at) VALUES
 ('job_max_attempts','3',unixepoch()*1000),
+('source_text_chars','4000',unixepoch()*1000),
+('source_file_bytes','5242880',unixepoch()*1000),
+('source_extracted_chars','20000',unixepoch()*1000),
+('rate_limit_post','10',unixepoch()*1000),
+('rate_limit_script','10',unixepoch()*1000),
+('rate_limit_repurpose','5',unixepoch()*1000),
+('rate_limit_content_plan','5',unixepoch()*1000),
 ('delivery_max_attempts','5',unixepoch()*1000),
 ('delivery_backoff_seconds','[15,60,300,900,3600]',unixepoch()*1000),
 ('history_duration_free','7',unixepoch()*1000),
