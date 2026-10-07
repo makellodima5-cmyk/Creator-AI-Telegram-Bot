@@ -20,7 +20,7 @@ export async function runJob(env:Bindings,id:number,resultId?:number){
  const job=await env.DB.prepare("SELECT * FROM jobs WHERE id=?").bind(id).first<any>();if(!job)return;
  try{
   const d=parse(job.input_json);
-  if(job.type==="source_analysis")return sourceAnalysis(env,job);
+  if(job.type==="source_analysis"||job.type==="repurpose"&&d.phase==="analysis")return sourceAnalysis(env,job);
   if(job.type==="style_profile")return styleProfile(env,job,d);
   if(job.type==="repurpose")return initializeRepurpose(env,job,d);
   if(["post","script","content_plan"].includes(String(job.type)))return single(env,job,d,String(job.type));
@@ -32,7 +32,7 @@ async function single(env:Bindings,job:any,d:any,op:string){
  const ai=await generate<any>(env,op,{operation:op,userInput:String(d.topic??d.userInput??""),parameters:d,source:d.sourceText,analysis:d.analysis,styleProfile:styleApplies(op)?await profile(env,job.user_id):undefined,previousResult:d.previousResult?JSON.stringify(d.previousResult):undefined},await getSettingNumber(env,"job_max_attempts",3));
  await attemptWriter(env,job.id,ai);
  const now=Date.now(),charged=Number(job.credits_reserved??0);
- await env.DB.prepare("UPDATE jobs SET output_json=?,provider=?,model=?,tokens_input=?,tokens_output=?,cost_usd_micros=?,duration_ms=?,prompt_version=?,credits_charged=credits_reserved,credits_reserved=0,status='completed',completed_at=? WHERE id=? AND status='processing'").bind(JSON.stringify(ai.output),ai.provider,ai.model,ai.inputTokens,ai.outputTokens,ai.costUsdMicros??0,ai.durationMs,ai.promptVersion,now,job.id).run();
+ await env.DB.prepare("UPDATE jobs SET output_json=?,provider=?,model=?,tokens_input=?,tokens_output=?,cost_usd_micros=?,duration_ms=?,prompt_version=?,credits_charged=credits_reserved,credits_reserved=0,status='completed',completed_at=? WHERE id=? AND status='processing'").bind(JSON.stringify(ai.output),ai.provider,ai.model,ai.inputTokens,ai.outputTokens,ai.costUsdMicros??0,ai.durationMs,ai.promptVersion,"awaiting_selection",now,job.id).run();
  await chargeCredits(env,job.user_id,charged,job.id);
  if(op==="content_plan")await storeContentPlan(env,job,ai.output,job.source_id??null);
  const rr=await env.DB.prepare("INSERT INTO job_results(job_id,user_id,result_type,position,status,content_json,credits_charged,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(job.id,job.user_id,op,0,"completed",JSON.stringify(ai.output),charged,now,now).run();
@@ -46,7 +46,7 @@ async function sourceAnalysis(env:Bindings,job:any){
  const src=await env.DB.prepare("SELECT extracted_text FROM sources WHERE id=? AND user_id=?").bind(job.source_id,job.user_id).first<any>();if(!src?.extracted_text)return failJob(env,job,"source_missing");
  const ai=await generate<any>(env,"source_analysis",{operation:"source_analysis",userInput:String(src.extracted_text),parameters:{sourceId:job.source_id}},await getSettingNumber(env,"job_max_attempts",3));await attemptWriter(env,job.id,ai);
  const now=Date.now();await env.DB.prepare("UPDATE sources SET analysis_json=?,updated_at=? WHERE id=? AND user_id=?").bind(JSON.stringify(ai.output),now,job.source_id,job.user_id).run();
- await env.DB.prepare("UPDATE jobs SET output_json=?,provider=?,model=?,tokens_input=?,tokens_output=?,cost_usd_micros=?,duration_ms=?,prompt_version=?,status='completed',completed_at=? WHERE id=?").bind(JSON.stringify(ai.output),ai.provider,ai.model,ai.inputTokens,ai.outputTokens,ai.costUsdMicros??0,ai.durationMs,ai.promptVersion,now,job.id).run();
+ await env.DB.prepare("UPDATE jobs SET output_json=?,provider=?,model=?,tokens_input=?,tokens_output=?,cost_usd_micros=?,duration_ms=?,prompt_version=?,status=?,completed_at=? WHERE id=?").bind(JSON.stringify(ai.output),ai.provider,ai.model,ai.inputTokens,ai.outputTokens,ai.costUsdMicros??0,ai.durationMs,ai.promptVersion,now,job.id).run();
  const s=await env.DB.prepare("SELECT working_message_id,working_chat_id FROM user_sessions WHERE user_id=?").bind(job.user_id).first<any>();
  if(s){const d={sourceId:job.source_id,analysis:ai.output,selectedOutputs:[]};await env.DB.prepare("UPDATE user_sessions SET flow='repurpose',step='select',draft_json=?,active_job_id=NULL,updated_at=? WHERE user_id=?").bind(JSON.stringify(d),now,job.user_id).run();const kb={inline_keyboard:[[{"text":"📱 Telegram","callback_data":"target:telegram"},{"text":"📸 Instagram","callback_data":"target:instagram"},{"text":"🎵 TikTok","callback_data":"target:tiktok"}],[{"text":"▶️ YouTube Shorts","callback_data":"target:youtube"},{"text":"🔥 5 Hook","callback_data":"target:hooks"},{"text":"🎯 3 CTA","callback_data":"target:cta"}],[{"text":"📅 Контент на неделю","callback_data":"target:plan"},{"text":"🚀 Создать контент","callback_data":"create"},{"text":"❌ Отмена","callback_data":"cancel"}]]};if(s.working_chat_id&&s.working_message_id)await editMessageText(env,s.working_chat_id,Number(s.working_message_id),"♻️ Creator AI / Repurpose\n\nМатериал проанализирован. Теперь выбери, какой контент создать из него.\n\n🔹 Стоимость: 0",kb).catch(()=>{});}
  return finishJob(env,job,false);
