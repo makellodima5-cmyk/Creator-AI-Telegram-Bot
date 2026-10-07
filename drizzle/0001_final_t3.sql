@@ -58,5 +58,3 @@ ALTER TABLE jobs ADD COLUMN prompt_version TEXT;
 ALTER TABLE jobs ADD COLUMN result_id INTEGER;
 ALTER TABLE payments ADD COLUMN product_key TEXT;
 ALTER TABLE history ADD COLUMN deleted_at INTEGER;
-ALTER TABLE job_results ADD COLUMN telegram_chat_id TEXT;
-ALTER TABLE job_results ADD COLUMN telegram_message_id INTEGER;
