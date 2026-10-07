@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS deliveries (id INTEGER PRIMARY KEY AUTOINCREMENT,resu
 CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,result_id INTEGER NOT NULL,expires_at INTEGER,created_at INTEGER NOT NULL,deleted_at INTEGER,result_type TEXT,title TEXT,UNIQUE(user_id,result_id));
 CREATE TABLE IF NOT EXISTS credit_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,type TEXT NOT NULL,delta INTEGER NOT NULL,balance_after INTEGER NOT NULL,job_id INTEGER,payment_id INTEGER,admin_id INTEGER,reference TEXT,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS update_receipts (update_id TEXT PRIMARY KEY,created_at INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,result_id INTEGER NOT NULL,expires_at INTEGER,created_at INTEGER NOT NULL,deleted_at INTEGER,result_type TEXT,title TEXT,UNIQUE(user_id,result_id));
 INSERT OR IGNORE INTO settings(key,value,updated_at) VALUES
 ('job_max_attempts','3',unixepoch()*1000),
 ('source_text_chars','4000',unixepoch()*1000),
@@ -68,5 +67,3 @@ CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status,next_retry
 CREATE INDEX IF NOT EXISTS idx_sources_expiry ON sources(expires_at);
 CREATE INDEX IF NOT EXISTS idx_history_expiry ON history(expires_at);
 CREATE INDEX IF NOT EXISTS idx_transactions_reference ON credit_transactions(reference);
-
-CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_idempotency ON jobs(user_id,idempotency_key);
