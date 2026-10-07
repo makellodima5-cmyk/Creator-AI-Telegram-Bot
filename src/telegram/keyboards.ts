@@ -4,7 +4,7 @@ export type PostDraft={topic:string;platform:string;style:string;length:string;c
 export type ScriptDraft={topic:string;platform:string;style:string;duration:string;credits?:number};
 export type PlanDraft={topic:string;goal:string;platform:string;style:string;credits?:number};
 export const mainMenu={inline_keyboard:[[b("📝 Пост","menu:post"),b("🎬 Сценарий","menu:script"),b("♻️ Переработка","menu:repurpose")],[b("📅 Контент-план","menu:plan"),b("👤 Мой стиль","menu:style"),b("🕘 История","menu:history")],[b("💎 Тарифы","menu:pricing"),b("⭐ Credits","menu:credits"),b("⚙️ Настройки","menu:settings")]]};
-export const persistentMenu={keyboard:[[{text:"📝 Пост"},{text:"🎬 Сценарий"},{text:"♻️ Переработка"}],[{text:"📅 Контент-план"},{text:"🕘 История"},{text:"💎 Тарифы"}],[{text:"⭐ Credits"},{text:"⚙️ Настройки"}]],resize_keyboard:true,is_persistent:true};
+export const persistentMenu={keyboard:[[{text:"📝 Пост"},{text:"🎬 Сценарий"},{text:"♻️ Переработка"}],[{text:"📅 Контент-план"},{text:"👤 Мой стиль"},{text:"🕘 История"}],[{text:"💎 Тарифы"},{text:"⭐ Credits"},{text:"⚙️ Настройки"}]],resize_keyboard:true,is_persistent:true};
 export const postConfig=(d:PostDraft)=>({inline_keyboard:[
  [mark(d.platform==="telegram","📱 Telegram","sel:telegram"),mark(d.platform==="instagram","📸 Instagram","sel:instagram")],
  [mark(d.platform==="tiktok","🎵 TikTok","sel:tiktok"),mark(d.platform==="youtube","▶️ YouTube","sel:youtube")],
@@ -33,7 +33,7 @@ export const planConfig=(d:PlanDraft)=>({inline_keyboard:[
  [b("🚀 Создать план","create")],[b("← Назад","back")]
 ]});
 export const optionKeyboard=(options:{text:string;data:string}[],back:string)=>{const rows:any[][]=[];for(let i=0;i<options.length;i+=2)rows.push(options.slice(i,i+2).map(x=>b(x.text,x.data)));rows.push([b("← Назад",back)]);return{inline_keyboard:rows}};
-export const repurposeTargets=(selected:string[],_price:number)=>({inline_keyboard:[[mark(selected.includes("telegram"),"📱 Telegram","target:telegram"),mark(selected.includes("instagram"),"📸 Instagram","target:instagram"),mark(selected.includes("tiktok"),"🎵 TikTok","target:tiktok")],[mark(selected.includes("youtube"),"▶️ YouTube Shorts","target:youtube"),mark(selected.includes("hooks"),"🔥 5 Hook","target:hooks"),mark(selected.includes("cta"),"🎯 3 CTA","target:cta")],[mark(selected.includes("plan"),"📅 Контент на неделю","target:plan"),b("🚀 Создать контент","create"),b("❌ Отмена","cancel")]]});
+export const repurposeTargets=(selected:string[],_price:number)=>({inline_keyboard:[[mark(selected.includes("telegram"),"📱 Telegram","target:telegram"),mark(selected.includes("instagram"),"📸 Instagram","target:instagram"),mark(selected.includes("tiktok"),"🎵 TikTok","target:tiktok")],[mark(selected.includes("youtube"),"▶️ YouTube Shorts","target:youtube"),mark(selected.includes("hooks"),"🔥 5 Hook","target:hooks"),mark(selected.includes("cta"),"🎯 3 CTA","target:cta")],[mark(selected.includes("plan"),"📅 Контент на неделю","target:plan"),mark(selected.includes("all"),"Выбрать всё","target:all")],[b("🚀 Создать контент","create"),b("❌ Отмена","cancel")]]});
 export const postResult=(id:number)=>({inline_keyboard:[[b("📋 Скопировать","copy:"+id),b("✏️ Изменить","edit:"+id)],[b("🔄 Другой вариант","variant:"+id),b("⭐ Сохранить в историю","save:"+id)]]});
 export const scriptResult=postResult;
 export const genericResult=postResult;
@@ -45,7 +45,7 @@ export const styleExamples=(ready:boolean)=>ready?{inline_keyboard:[[b("✨ Пр
 export const insufficientKeyboard=()=>({inline_keyboard:[[b("🔹 Купить кредиты","menu:credits"),b("💎 Изменить тариф","menu:pricing")],[b("❌ Отмена","cancel")]]});
 export const errorKeyboard=(id:number)=>({inline_keyboard:[[b("🔄 Попробовать ещё раз","retry:"+id)],[b("❌ Отмена","cancel")]]});
 export const repurposeFailureKeyboard=(id:number)=>({inline_keyboard:[[b("🔄 Повторить неудачные","rep-retry:"+id)],[b("❌ Отмена","cancel")]]});
-export const settingsKeyboard={inline_keyboard:[[b("👤 Аккаунт","settings:profile"),b("🌐 Язык","settings:language"),b("🔔 Уведомления","settings:notifications")],[b("💬 Помощь","settings:support"),b("⚖️ Условия использования","settings:terms"),b("🛡️ Конфиденциальность","settings:privacy")],[b("← Назад","menu:back")]]};
+export const settingsKeyboard={inline_keyboard:[[b("👤 Аккаунт","settings:profile")],[b("🌐 Язык","settings:language")],[b("🔔 Уведомления","settings:notifications")],[b("💬 Помощь","settings:support")],[b("⚖️ Условия использования","settings:terms"),b("🛡️ Конфиденциальность","settings:privacy")]]};
 export const languageKeyboard={inline_keyboard:[[b("🇷🇺 Русский","settings:language:ru"),b("🇬🇧 English","settings:language:en")],[b("← Назад","menu:settings")]]};
 export const notificationKeyboard=(enabled:boolean)=>({inline_keyboard:[[b(enabled?"🔕 Выключить уведомления":"🔔 Включить уведомления","settings:toggle")],[b("← Назад","menu:settings")]]});
 export const creditsKeyboard=(packages=[50,100,250,500])=>({inline_keyboard:[[b("⭐ "+packages[0]+" кредитов","buy:credits:"+packages[0]),b("⭐ "+packages[1]+" кредитов","buy:credits:"+packages[1])],[b("⭐ "+packages[2]+" кредитов","buy:credits:"+packages[2]),b("⭐ "+packages[3]+" кредитов","buy:credits:"+packages[3])],[b("💎 Изменить тариф","menu:pricing")]]});
