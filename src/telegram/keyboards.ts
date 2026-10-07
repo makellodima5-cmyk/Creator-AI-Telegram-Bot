@@ -34,9 +34,9 @@ export const planConfig=(d:PlanDraft)=>({inline_keyboard:[
 ]});
 export const optionKeyboard=(options:{text:string;data:string}[],back:string)=>{const rows:any[][]=[];for(let i=0;i<options.length;i+=2)rows.push(options.slice(i,i+2).map(x=>b(x.text,x.data)));rows.push([b("← Назад",back)]);return{inline_keyboard:rows}};
 export const repurposeTargets=(selected:string[],_price:number)=>({inline_keyboard:[[mark(selected.includes("telegram"),"📱 Telegram","target:telegram"),mark(selected.includes("instagram"),"📸 Instagram","target:instagram"),mark(selected.includes("tiktok"),"🎵 TikTok","target:tiktok")],[mark(selected.includes("youtube"),"▶️ YouTube Shorts","target:youtube"),mark(selected.includes("hooks"),"🔥 5 Hook","target:hooks"),mark(selected.includes("cta"),"🎯 3 CTA","target:cta")],[mark(selected.includes("plan"),"📅 Контент на неделю","target:plan"),mark(selected.includes("all"),"Выбрать всё","target:all")],[b("🚀 Создать контент","create"),b("❌ Отмена","cancel")]]});
-export const postResult=(id:number)=>({inline_keyboard:[[b("📋 Скопировать","copy:"+id),b("✏️ Изменить","edit:"+id)],[b("🔄 Другой вариант","variant:"+id),b("⭐ Сохранить в историю","save:"+id)]]});
-export const scriptResult=postResult;
-export const genericResult=postResult;
+export const postResult=(id:number,_title?:string)=>({inline_keyboard:[[b("📋 Скопировать","copy:"+id),b("✏️ Изменить","edit:"+id)],[b("🔄 Другой вариант","variant:"+id),b("⭐ Сохранить в историю","save:"+id)],[b("🏠 Главное меню","menu:back")],[b("← Назад","back")]]});
+export const scriptResult=(id:number,_title?:string)=>({inline_keyboard:[[b("📋 Скопировать","copy:"+id),b("✏️ Изменить","edit:"+id)],[b("🔄 Другой вариант","variant:"+id),b("⭐ Сохранить в историю","save:"+id)],[b("🏠 Главное меню","menu:back")]]});
+export const genericResult=scriptResult;
 export const repurposeResult=postResult;
 export const styleResult=(id:number)=>({inline_keyboard:[[b("⭐ Сохранить в историю","save:"+id),b("← My Style","menu:style")],[b("🏠 Главное меню","menu:back")]]});
 export const planResult=(jobId:number,days:any[],resultId:number)=>{const buttons=days.map((d:any,i:number)=>b("📅 "+String(d.day??"День "+(i+1))+" · "+String(d.title??"").slice(0,16),"dayview:"+jobId+":"+i));const rows:any[][]=[];for(let i=0;i<buttons.length;i+=3)rows.push(buttons.slice(i,i+3));return{inline_keyboard:rows};};
