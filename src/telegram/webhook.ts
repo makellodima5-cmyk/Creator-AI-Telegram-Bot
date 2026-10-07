@@ -1,5 +1,5 @@
 import type { Bindings } from '../env';
-import { ensureUser, addTransaction, reserveCredits } from '../billing/credits';
+import { ensureUser, addTransaction, reserveCredits, refundCredits } from '../billing/credits';
 import { getPrice, getPackage, getPlan, getHistoryDuration } from '../config';
 import { createTextSource, createDocumentSource } from '../files/source';
 import { createJob } from '../jobs/create';
