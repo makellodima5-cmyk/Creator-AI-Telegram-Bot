@@ -1,9 +1,10 @@
-type TelegramResponse<T>={ok:true;result:T}|{ok:false;description:string;error_code:number};
-export type TelegramMessage={message_id:number;chat:{id:number};text?:string};
-export async function telegram<T>(env:{TELEGRAM_BOT_TOKEN:string},method:string,body:unknown):Promise<T>{const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const d=await r.json() as TelegramResponse<T>;if(!r.ok||!d.ok)throw new Error(d.ok?"telegram_http_error":d.description);return d.result}
-export const sendMessage=(env:{TELEGRAM_BOT_TOKEN:string},chatId:string|number,text:string,replyMarkup?:unknown)=>telegram<TelegramMessage>(env,"sendMessage",{chat_id:chatId,text,reply_markup:replyMarkup});
-export const editMessageText=(env:{TELEGRAM_BOT_TOKEN:string},chatId:string|number,messageId:number,text:string,replyMarkup?:unknown)=>telegram<TelegramMessage>(env,"editMessageText",{chat_id:chatId,message_id:messageId,text,reply_markup:replyMarkup});
-export const deleteMessage=(env:{TELEGRAM_BOT_TOKEN:string},chatId:string|number,messageId:number)=>telegram<boolean>(env,"deleteMessage",{chat_id:chatId,message_id:messageId});
-export const answerCallback=(env:{TELEGRAM_BOT_TOKEN:string},callbackQueryId:string)=>telegram<boolean>(env,"answerCallbackQuery",{callback_query_id:callbackQueryId});
-export const answerPreCheckoutQuery=(env:{TELEGRAM_BOT_TOKEN:string},id:string,ok:boolean,errorMessage?:string)=>telegram<boolean>(env,"answerPreCheckoutQuery",{pre_checkout_query_id:id,ok,error_message:errorMessage});
-export const sendInvoice=(env:{TELEGRAM_BOT_TOKEN:string},chatId:string|number,title:string,description:string,payload:string,stars:number)=>telegram<TelegramMessage>(env,"sendInvoice",{chat_id:chatId,title,description,payload,currency:"XTR",prices:[{label:title,amount:stars}]});
+import type{Bindings}from"../env";
+async function call(env:Bindings,method:string,body:Record<string,unknown>){const r=await fetch("https://api.telegram.org/bot"+env.TELEGRAM_BOT_TOKEN+"/"+method,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const d:any=await r.json();if(!r.ok||!d.ok)throw new Error("telegram_"+method+"_"+String(d.description??r.status));return d.result}
+export async function sendMessage(env:Bindings,chatId:string,text:string,replyMarkup?:unknown){return call(env,"sendMessage",{chat_id:chatId,text,reply_markup:replyMarkup})}
+export async function editMessageText(env:Bindings,chatId:string,messageId:number,text:string,replyMarkup?:unknown){return call(env,"editMessageText",{chat_id:chatId,message_id:messageId,text,reply_markup:replyMarkup})}
+export async function deleteMessage(env:Bindings,chatId:string,messageId:number){return call(env,"deleteMessage",{chat_id:chatId,message_id:messageId})}
+export async function answerCallback(env:Bindings,id:string){return call(env,"answerCallbackQuery",{callback_query_id:id})}
+export async function answerPreCheckoutQuery(env:Bindings,id:string,ok:boolean,errorMessage?:string){return call(env,"answerPreCheckoutQuery",{pre_checkout_query_id:id,ok,...(ok?{}:{error_message:errorMessage??"Платёж недоступен."})})}
+export async function sendInvoice(env:Bindings,chatId:string,title:string,description:string,payload:string,stars:number){return call(env,"sendInvoice",{chat_id:chatId,title,description,payload,provider_token:"",currency:"XTR",prices:[{label:title,amount:stars}],start_parameter:"creator-ai"})}
+export async function getTelegramFile(env:Bindings,fileId:string){const r:any=await call(env,"getFile",{file_id:fileId});return{file_path:String(r.file_path??"")}}
+export async function downloadTelegramFile(env:Bindings,filePath:string){const r=await fetch("https://api.telegram.org/file/bot"+env.TELEGRAM_BOT_TOKEN+"/"+filePath);if(!r.ok)throw new Error("telegram_file_download_"+r.status);return new Uint8Array(await r.arrayBuffer())}
