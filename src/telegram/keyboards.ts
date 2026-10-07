@@ -15,7 +15,7 @@ export const scriptResult=postResult;
 export const genericResult=postResult;
 export const repurposeResult=postResult;
 export const styleResult=(id:number)=>({inline_keyboard:[[b("⭐ Сохранить в историю","save:"+id),b("← My Style","menu:style")],[b("🏠 Главное меню","menu:back")]]});
-export const planResult=(jobId:number,days:any[],resultId:number)=>({inline_keyboard:[...days.slice(0,3).map((d:any,i:number)=>b("📅 "+String(d.day??"День "+(i+1))+" · "+String(d.title??"").slice(0,16),"dayview:"+jobId+":"+i)),...days.slice(3,6).map((d:any,i:number)=>b("📅 "+String(d.day??"День "+(i+4))+" · "+String(d.title??"").slice(0,16),"dayview:"+jobId+":"+(i+3)),...days.slice(6,7).map((d:any)=>b("📅 "+String(d.day??"День 7")+" · "+String(d.title??"").slice(0,16),"dayview:"+jobId+":6")].reduce((rows:any[],x:any,i:number)=>{if(i%3===0)rows.push([]);rows[rows.length-1].push(x);return rows},[])});
+export const planResult=(jobId:number,days:any[],resultId:number)=>{const buttons=days.map((d:any,i:number)=>b("📅 "+String(d.day??"День "+(i+1))+" · "+String(d.title??"").slice(0,16),"dayview:"+jobId+":"+i));const rows:any[][]=[];for(let i=0;i<buttons.length;i+=3)rows.push(buttons.slice(i,i+3));return{inline_keyboard:rows};};
 export const historyItem=(id:number)=>({inline_keyboard:[[b("▶️ Открыть","hcontinue:"+id)],[b("📋 Скопировать","hcopy:"+id),b("🗑 Удалить из истории","hdelete:"+id)]]});
 export const styleExamples=(ready:boolean)=>ready?{inline_keyboard:[[b("✨ Проанализировать стиль","style:analyze")],[b("← Назад","back")]]}:{inline_keyboard:[[b("← Назад","back")]]};
 export const insufficientKeyboard=()=>({inline_keyboard:[[b("🔹 Купить кредиты","menu:credits"),b("💎 Изменить тариф","menu:pricing")],[b("❌ Отмена","cancel")]]});
