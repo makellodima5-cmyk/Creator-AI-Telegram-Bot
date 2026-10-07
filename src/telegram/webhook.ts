@@ -37,17 +37,17 @@ const uiKeys = ["__uiMessageId", "__uiKind"] as const;
 type UiKind = "menu" | "flow" | "processing" | "result";
 type FeatureFlow = "post" | "script" | "plan" | "repurpose";
 
-const mainMenuText = "👋 Creator AI\n\nСоздавай готовый контент прямо в Telegram.";
+const mainMenuText = "Одна идея → готовый контент\nдля всех твоих площадок.\n\nЧто создадим?";
 
 const prompts = {
   post:
-    "📝 Post Maker\n\nО чём пост?\n\nНапиши тему или идею.\n\nНапример:\n«5 способов использовать AI\nв Telegram»\n\n",
+    "📝 СОЗДАНИЕ ПОСТА\n\nО чём хочешь рассказать?\n\nНапиши тему или отправь материал.\n\nНапример:\n«5 способов использовать AI в Telegram»\n\n",
   script:
-    "🎬 Script Maker\n\nО чём ролик?\n\nНапиши тему или идею.\n\nНапример:\n«5 AI-сервисов для работы\nс телефона»\n\n",
+    "🎬 СОЗДАНИЕ СЦЕНАРИЯ\n\nО чём ролик?\n\nНапиши идею или отправь материал.\n\nНапример:\n«5 AI-сервисов для телефона»\n\n",
   repurpose:
-    "♻️ Repurpose\n\nПреврати один материал\nв готовый контент для разных площадок.\n\nМожно отправить:\n• текст\n• статью\n• документ\n• аудио\n• видео\n• голосовое сообщение\n\nОтправь материал ↓\n\n",
+    "♻️ ПЕРЕРАБОТКА\n\nОтправь один материал —\nя превращу его в готовый контент.\n\nПодойдёт:\n• текст\n• статья\n• транскрипция\n• аудио\n• видео\n\n",
   plan:
-    "📅 Content Plan\n\nСоздам контент-план\nна 7 дней.\n\nО чём твой канал\nили проект?\n\nНапиши тему ↓\n\n",
+    "📅 КОНТЕНТ-ПЛАН\n\nРасскажи о проекте.\n\nНапример:\n«У меня Telegram-канал\nпро AI, хочу больше подписчиков»\n\n",
 };
 
 export async function handleWebhook(env: Bindings, update: unknown) {
@@ -172,19 +172,19 @@ async function handleAction(env: Bindings, userId: number, chatId: string, data:
   const db = createDb(env);
 
   if (data === "menu:post") {
-    return openFeature(env, db, userId, chatId, msg, "post", defaults.post, prompts.post + "[ ← Назад ]", postConfig(defaults.post));
+    return openFeature(env, db, userId, chatId, msg, "post", defaults.post, prompts.post, postConfig(defaults.post));
   }
 
   if (data === "menu:script") {
-    return openFeature(env, db, userId, chatId, msg, "script", defaults.script, prompts.script + "[ ← Назад ]", scriptConfig(defaults.script));
+    return openFeature(env, db, userId, chatId, msg, "script", defaults.script, prompts.script, scriptConfig(defaults.script));
   }
 
   if (data === "menu:plan") {
-    return openFeature(env, db, userId, chatId, msg, "plan", defaults.plan, prompts.plan + "[ ← Назад ]", planConfig(defaults.plan));
+    return openFeature(env, db, userId, chatId, msg, "plan", defaults.plan, prompts.plan, planConfig(defaults.plan));
   }
 
   if (data === "menu:repurpose") {
-    return openFeature(env, db, userId, chatId, msg, "repurpose", defaults.repurpose, prompts.repurpose + "[ ← Назад ]", repurposeTargets(defaults.repurpose.targets));
+    return openFeature(env, db, userId, chatId, msg, "repurpose", defaults.repurpose, prompts.repurpose, repurposeTargets(defaults.repurpose.targets));
   }
 
   if (data === "menu:pricing") {

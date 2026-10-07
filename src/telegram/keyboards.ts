@@ -6,7 +6,6 @@ export const mainMenu={inline_keyboard:[
 [b("♻️ Переработка","menu:repurpose"),b("📅 Контент-план","menu:plan")],
 [b("👤 Мой стиль","menu:style"),b("🕘 История","menu:history")],
 [b("💎 Тарифы","menu:pricing"),b("⭐ Credits","menu:credits")],
-[b("⚙️ Настройки","menu:settings")],
 ]};
 
 export const persistentMenu={keyboard:[
