@@ -36,7 +36,8 @@ async function action(env:Bindings,userId:number,chatId:string,data:string,msg:a
  if(data==="menu:script")return openFeature(env,db,userId,chatId,"script");
  if(data==="menu:plan")return openFeature(env,db,userId,chatId,"plan");
  if(data==="menu:repurpose")return openFeature(env,db,userId,chatId,"repurpose");
- if(data.startsWith("buy:"))return buy(env,db,userId,chatId,data);\n if(data==="menu:style")return openStyle(env,db,userId,chatId);
+ if(data.startsWith("buy:"))return buy(env,db,userId,chatId,data);
+ if(data==="menu:style")return openStyle(env,db,userId,chatId);
  if(data==="menu:history")return history(env,db,userId,chatId,msg);
  if(data==="menu:pricing")return screen(env,db,userId,chatId,msg,"💎 CREATOR AI / ТАРИФЫ\n\nВыбирай уровень, который подходит твоему темпу создания контента.\n\n✨ FREE\n10 кредитов в месяц\n🕘 История — по сроку, заданному тарифной конфигурацией\n\n⚡ CREATOR\n99 ⭐ / месяц\n100 кредитов\n\n🚀 PRO\n299 ⭐ / месяц\n500 кредитов\n\nБольше контента. Меньше ограничений.",pricingKeyboard);
  if(data==="menu:credits"){const u=await db.select().from(users).where(eq(users.id,userId)).get();return screen(env,db,userId,chatId,msg,"💎 CREATOR AI / КРЕДИТЫ\n\nТвой текущий баланс:\n\n🔹 "+(u?.creditsBalance??0)+" кредитов\n\nНе хочешь менять тариф? Просто пополни баланс и продолжай создавать контент.\n\n✨ Выбери пакет кредитов:",creditsKeyboard());}
