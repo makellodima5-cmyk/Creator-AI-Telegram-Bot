@@ -3,6 +3,7 @@ import { ensureUser, addTransaction } from '../billing/credits';
 import { getPrice, getPackage, getPlan, getHistoryDuration } from '../config';
 import { createTextSource, createDocumentSource } from '../files/source';
 import { createJob } from '../jobs/create';
+import { createPlanDayJob } from '../jobs/day-engine';
 import { daysForPlan } from '../jobs/plan-store';
 import { plainResult, resultMarkup } from '../jobs/runner';
 import { answerCallback, answerPreCheckoutQuery, deleteMessage, editMessageText, sendInvoice, sendMessage } from './api';
