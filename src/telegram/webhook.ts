@@ -11,11 +11,15 @@ import {
   postConfig,
   postResult,
   pricingKeyboard,
+  creditsKeyboard,
   repurposeConfirm,
   repurposeResult,
   repurposeTargets,
   scriptConfig,
   scriptResult,
+  settingsKeyboard,
+  languageKeyboard,
+  notificationKeyboard,
 } from "./keyboards";
 import type { Bindings } from "../env";
 import type { TelegramMessage } from "./api";
@@ -99,6 +103,7 @@ export async function handleWebhook(env: Bindings, update: unknown) {
       "📝 Пост": "menu:post",
       "🎬 Сценарий": "menu:script",
       "♻️ Переработка": "menu:repurpose",
+      "📅 Контент-план": "menu:plan",
       "📅 План": "menu:plan",
       "👤 Мой стиль": "menu:style",
       "🕘 История": "menu:history",
