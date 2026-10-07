@@ -1,16 +1,1 @@
-import { Hono } from "hono";
-import type { AppEnv } from "./env";
-import { handleWebhook } from "./telegram/webhook";
-import { consumeJobs } from "./jobs/consumer";
-
-const app = new Hono<AppEnv>();
-app.get("/", (c) => c.json({ ok: true, service: "creator-ai-telegram-bot" }));
-app.get("/health", (c) => c.json({ ok: true }));
-app.post("/telegram/webhook", async (c) => {
-  const secret = c.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!secret || c.req.header("X-Telegram-Bot-Api-Secret-Token") !== secret) return c.json({ ok: false }, 401);
-  const update = await c.req.json();
-  c.executionCtx.waitUntil(handleWebhook(c.env, update));
-  return c.json({ ok: true });
-});
-export default { fetch: app.fetch, queue: consumeJobs } satisfies ExportedHandler<AppEnv["Bindings"], Error>;
+import{Hono}from"hono";import type{Bindings}from"./env";import{handleWebhook}from"./telegram/webhook";import{consumeJobs}from"./jobs/consumer";import{deliverBatch}from"./jobs/delivery";import{cleanup}from"./maintenance";const app=new Hono<{Bindings:Bindings}>();app.get("/",c=>c.text("Creator AI"));app.get("/health",c=>c.json({ok:true}));app.post("/telegram/webhook",async c=>{const secret=c.req.header("X-Telegram-Bot-Api-Secret-Token");if(c.env.TELEGRAM_WEBHOOK_SECRET&&secret!==c.env.TELEGRAM_WEBHOOK_SECRET)return c.text("Unauthorized",401);const update=await c.req.json();c.executionCtx.waitUntil(handleWebhook(c.env,update));return c.json({ok:true})});export default{async fetch(req:Request,env:Bindings,ctx:ExecutionContext){return app.fetch(req,env,ctx)},async queue(batch:MessageBatch<unknown>,env:Bindings){return batch.queue==="creator-ai-deliveries"?deliverBatch(batch,env):consumeJobs(batch,env)},async scheduled(_e:ScheduledEvent,env:Bindings,ctx:ExecutionContext){ctx.waitUntil(cleanup(env))}};
