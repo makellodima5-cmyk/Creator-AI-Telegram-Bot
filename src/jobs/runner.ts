@@ -22,7 +22,7 @@ export async function runJob(env:Bindings,id:number,resultId?:number){
   const d=parse(job.input_json);
   if(job.type==="source_analysis"||job.type==="repurpose"&&d.phase==="analysis")return sourceAnalysis(env,job);
   if(job.type==="style_profile")return styleProfile(env,job,d);
-  if(job.type==="repurpose")return initializeRepurpose(env,job,d);
+  if(job.type==="repurpose")return d.phase==="analysis"?sourceAnalysis(env,job):initializeRepurpose(env,job,d);if(job.type==="repurpose_result")return standaloneResult(env,job,d);
   if(["post","script","content_plan"].includes(String(job.type)))return single(env,job,d,String(job.type));
   return failJob(env,job,"unsupported_job_type");
  }catch(e){return failJob(env,job,e instanceof Error?e.message:String(e));}
@@ -42,6 +42,7 @@ async function single(env:Bindings,job:any,d:any,op:string){
  return finishJob(env,job);
 }
 
+async function standaloneResult(env:Bindings,job:any,d:any){const rt=String(d.resultType??"telegram").replace(/^repurpose_/,""),op=resultOp(rt);const ai=await generate<any>(env,op,{operation:op,userInput:String(d.sourceText??d.topic??""),parameters:d,analysis:d.analysis,styleProfile:styleApplies(op)?await profile(env,job.user_id):undefined,previousResult:d.previousResult?JSON.stringify(d.previousResult):undefined},await getSettingNumber(env,"job_max_attempts",3));await attemptWriter(env,job.id,ai);const now=Date.now(),charged=Number(job.credits_reserved??0);await env.DB.prepare("UPDATE jobs SET output_json=?,provider=?,model=?,tokens_input=?,tokens_output=?,cost_usd_micros=?,duration_ms=?,prompt_version=?,credits_charged=credits_reserved,credits_reserved=0,status='completed',completed_at=? WHERE id=?").bind(JSON.stringify(ai.output),ai.provider,ai.model,ai.inputTokens,ai.outputTokens,ai.costUsdMicros??0,ai.durationMs,ai.promptVersion,now,job.id).run();await chargeCredits(env,job.user_id,charged,job.id);const rr=await env.DB.prepare("INSERT INTO job_results(job_id,user_id,result_type,position,status,content_json,credits_charged,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?)").bind(job.id,job.user_id,op,0,"completed",JSON.stringify(ai.output),charged,now,now).run();await enqueueDelivery(env,Number(rr.meta.last_row_id),job.user_id,0,String(job.telegram_chat_id??""));return finishJob(env,job)}
 async function sourceAnalysis(env:Bindings,job:any){
  const src=await env.DB.prepare("SELECT extracted_text FROM sources WHERE id=? AND user_id=?").bind(job.source_id,job.user_id).first<any>();if(!src?.extracted_text)return failJob(env,job,"source_missing");
  const ai=await generate<any>(env,"source_analysis",{operation:"source_analysis",userInput:String(src.extracted_text),parameters:{sourceId:job.source_id}},await getSettingNumber(env,"job_max_attempts",3));await attemptWriter(env,job.id,ai);
