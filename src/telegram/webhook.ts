@@ -332,7 +332,14 @@ async function editResult(env:Bindings,userId:number,chatId:string,id:number,msg
   const output=rt.replace(/^repurpose_/,""),sourceId=Number(r.source_id||j.sourceId||0)||null,sourceText=await sourceForResult(env,r);
   if(["telegram","instagram"].includes(output)){const d={topic:"",platform:output==="telegram"?"telegram":"instagram",style:"conversational",length:"short",editResultId:id,parentJobId:Number(r.job_id),previousResult:parse(r.content_json),sourceId,sourceText,resultType:output};await saveSession(env,userId,"post","config",d,Number(msg.message_id),chatId,7200000,null);const p=await getPrice(env,"repurpose_"+output);return editMessageText(env,chatId,Number(msg.message_id),t.postEditConfig(p),postConfig(d,getLang(u)));}
   if(["tiktok","youtube"].includes(output)){const platform=output==="tiktok"?"tiktok":"youtube",d={topic:"",platform,style:"dynamic",duration:"30",editResultId:id,parentJobId:Number(r.job_id),previousResult:parse(r.content_json),sourceId,sourceText,resultType:output};await saveSession(env,userId,"script","config",d,Number(msg.message_id),chatId,7200000,null);const p=await getPrice(env,"repurpose_"+output);return editMessageText(env,chatId,Number(msg.message_id),t.scriptEditConfig(p),scriptConfig(d,getLang(u)));}
-  const d={resultType:output,editResultId:id,parentJobId:Number(r.job_id),sourceId,sourceText,previousResult:parse(r.content_json)};const p=await getPrice(env,"repurpose_"+output);await saveSession(env,userId,"repurpose_edit","config",d,Number(msg.message_id),chatId,7200000,null);return editMessageText(env,chatId,Number(msg.message_id),getLang(u)==="en"?("♻️ Creator AI / Repurpose\\n\\nChange this result and create a new version.\\n\\n💳 Generation cost: "+p+" 🔹"):("♻️ Creator AI / Repurpose\\n\\nИзмени этот результат и создай новую версию.\\n\\n💳 Стоимость генерации: "+p+" 🔹"),{inline_keyboard:[[{text:getLang(u)==="en"?"🚀 Create":"🚀 Создать",callback_data:"create"}],[{text:getLang(u)==="en"?"↩️ In menu":"↩️ В меню","callback_data:"menu:back"}]]});
+  const d={resultType:output,editResultId:id,parentJobId:Number(r.job_id),sourceId,sourceText,previousResult:parse(r.content_json)};const p=await getPrice(env,"repurpose_"+output);await saveSession(env,userId,"repurpose_edit","config",d,Number(msg.message_id),chatId,7200000,null);return editMessageText(env,chatId,Number(msg.message_id),
+   getLang(u)==="en"
+    ?"♻️ Creator AI / Repurpose\\n\\nChange this result and create a new version.\\n\\n💳 Generation cost: "+p+" 🔹"
+    :"♻️ Creator AI / Repurpose\\n\\nИзмени этот результат и создай новую версию.\\n\\n💳 Стоимость генерации: "+p+" 🔹",
+   {inline_keyboard:[
+    [{text:getLang(u)==="en"?"🚀 Create":"🚀 Создать",callback_data:"create"}],
+    [{text:getLang(u)==="en"?"↩️ In menu":"↩️ В меню",callback_data:"menu:back"}]
+   ]});
  }
 }
 async function variantResult(env:Bindings,userId:number,chatId:string,id:number,updateId:number,msg:Any){
