@@ -39,6 +39,6 @@ async function advanceDelivery(env:Bindings,deliveryId:number){
  const next=await env.DB.prepare("SELECT id,position FROM job_results WHERE job_id=? AND position>? ORDER BY position LIMIT 1").bind(Number(d.job_id),Number(d.position)).first<any>();if(!next)return;
  await env.DB.prepare("INSERT OR IGNORE INTO deliveries(result_id,user_id,position,chat_id,status,created_at) VALUES(?,?,?,?,?,?)").bind(Number(next.id),Number(d.user_id),Number(next.position),String(d.telegram_chat_id??""),"queued",Date.now()).run();
  const actual=await env.DB.prepare("SELECT id,status FROM deliveries WHERE result_id=?").bind(Number(next.id)).first<any>();if(!actual||actual.status==="sent")return;
- const deliveryId=Number(actual.id);
- await env.DELIVERY_QUEUE.send({deliveryId}).catch(async()=>{await env.DB.prepare("UPDATE deliveries SET next_retry_at=?,last_error=? WHERE id=? AND status='queued'").bind(Date.now()+60000,"QUEUE_ERROR",deliveryId).run()});
+ const nextDeliveryId=Number(actual.id);
+ await env.DELIVERY_QUEUE.send({deliveryId:nextDeliveryId}).catch(async()=>{await env.DB.prepare("UPDATE deliveries SET next_retry_at=?,last_error=? WHERE id=? AND status='queued'").bind(Date.now()+60000,"QUEUE_ERROR",deliveryId).run()});
 }
