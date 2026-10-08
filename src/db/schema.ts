@@ -1,152 +1,25 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-
-const timestamps = {
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-};
-
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  telegramId: text("telegram_id").notNull().unique(),
-  username: text("username"),
-  firstName: text("first_name"),
-  language: text("language").notNull().default("ru"),
-  plan: text("plan").notNull().default("free"),
-  creditsBalance: integer("credits_balance").notNull().default(0),
-  creditsResetAt: integer("credits_reset_at", { mode: "timestamp_ms" }),
-  notificationsEnabled: integer("notifications_enabled", { mode: "boolean" }).notNull().default(true),
-  termsAcceptedAt: integer("terms_accepted_at", { mode: "timestamp_ms" }),
-  ...timestamps,
-});
-
-export const userSessions = sqliteTable("user_sessions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").notNull().unique(),
-  flow: text("flow").notNull(),
-  step: text("step").notNull(),
-  draftJson: text("draft_json"),
-  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-});
-
-export const projects = sqliteTable("projects", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").notNull(),
-  name: text("name").notNull(),
-  styleProfileJson: text("style_profile_json"),
-  ...timestamps,
-});
-
-export const jobs = sqliteTable("jobs", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").notNull(),
-  parentJobId: integer("parent_job_id"),
-  type: text("type").notNull(),
-  status: text("status").notNull(),
-  inputJson: text("input_json"),
-  outputJson: text("output_json"),
-  inputFileId: integer("input_file_id"),
-  outputFileId: integer("output_file_id"),
-  provider: text("provider"),
-  model: text("model"),
-  tokensInput: integer("tokens_input"),
-  tokensOutput: integer("tokens_output"),
-  costUsdMicros: integer("cost_usd_micros"),
-  creditsReserved: integer("credits_reserved").notNull().default(0),
-  creditsCharged: integer("credits_charged").notNull().default(0),
-  attempts: integer("attempts").notNull().default(0),
-  errorCode: text("error_code"),
-  errorMessage: text("error_message"),
-  telegramChatId: text("telegram_chat_id"),
-  telegramMessageId: integer("telegram_message_id"),
-  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-  isSaved: integer("is_saved", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  startedAt: integer("started_at", { mode: "timestamp_ms" }),
-  completedAt: integer("completed_at", { mode: "timestamp_ms" }),
-});
-
-export const files = sqliteTable("files", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").notNull(),
-  jobId: integer("job_id"),
-  storageType: text("storage_type").notNull(),
-  telegramFileId: text("telegram_file_id"),
-  telegramFileUniqueId: text("telegram_file_unique_id"),
-  r2Key: text("r2_key"),
-  mimeType: text("mime_type"),
-  fileName: text("file_name"),
-  sizeBytes: integer("size_bytes"),
-  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-  isSaved: integer("is_saved", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-});
-
-export const creditLedger = sqliteTable("credit_ledger", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").notNull(),
-  delta: integer("delta").notNull(),
-  balanceAfter: integer("balance_after").notNull(),
-  reason: text("reason").notNull(),
-  jobId: integer("job_id"),
-  paymentId: integer("payment_id"),
-  adminId: integer("admin_id"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-});
-
-export const pricing = sqliteTable("pricing", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  key: text("key").notNull().unique(),
-  type: text("type").notNull(),
-  creditsCost: integer("credits_cost"),
-  starsPrice: integer("stars_price"),
-  includedCredits: integer("included_credits"),
-  durationDays: integer("duration_days"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  updatedBy: integer("updated_by"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-});
-
-export const subscriptions = sqliteTable("subscriptions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").notNull(),
-  plan: text("plan").notNull(),
-  provider: text("provider").notNull(),
-  starsAmount: integer("stars_amount"),
-  status: text("status").notNull(),
-  currentPeriodStart: integer("current_period_start", { mode: "timestamp_ms" }),
-  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
-  telegramPaymentChargeId: text("telegram_payment_charge_id"),
-  invoicePayload: text("invoice_payload"),
-  isRecurring: integer("is_recurring", { mode: "boolean" }).notNull().default(false),
-  canceledAt: integer("canceled_at", { mode: "timestamp_ms" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-});
-
-export const payments = sqliteTable("payments", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").notNull(),
-  provider: text("provider").notNull(),
-  kind: text("kind").notNull(),
-  telegramPaymentChargeId: text("telegram_payment_charge_id").unique(),
-  invoicePayload: text("invoice_payload").unique(),
-  currency: text("currency").notNull(),
-  starsAmount: integer("stars_amount").notNull(),
-  status: text("status").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  refundedAt: integer("refunded_at", { mode: "timestamp_ms" }),
-});
-
-export const adminAuditLog = sqliteTable("admin_audit_log", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  adminUserId: integer("admin_user_id").notNull(),
-  action: text("action").notNull(),
-  targetUserId: integer("target_user_id"),
-  entityType: text("entity_type"),
-  entityId: integer("entity_id"),
-  oldValueJson: text("old_value_json"),
-  newValueJson: text("new_value_json"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-});
+import{integer,sqliteTable,text,uniqueIndex,index}from"drizzle-orm/sqlite-core";
+const ts={createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull(),updatedAt:integer("updated_at",{mode:"timestamp_ms"}).notNull()};
+export const users=sqliteTable("users",{id:integer("id").primaryKey({autoIncrement:true}),telegramId:text("telegram_id").notNull().unique(),username:text("username"),firstName:text("first_name"),language:text("language").notNull().default("ru"),role:text("role").notNull().default("user"),plan:text("plan").notNull().default("free"),tariffId:integer("tariff_id"),creditsBalance:integer("credits_balance").notNull().default(0),creditsResetAt:integer("credits_reset_at",{mode:"timestamp_ms"}),generationLockJobId:integer("generation_lock_job_id"),notificationsEnabled:integer("notifications_enabled",{mode:"boolean"}).notNull().default(true),termsAcceptedAt:integer("terms_accepted_at",{mode:"timestamp_ms"}),lastSeenAt:integer("last_seen_at",{mode:"timestamp_ms"}),...ts});
+export const userSessions=sqliteTable("user_sessions",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull().unique(),flow:text("flow").notNull(),step:text("step").notNull(),workingMessageId:integer("working_message_id"),workingChatId:text("working_chat_id"),activeJobId:integer("active_job_id"),draftJson:text("draft_json"),expiresAt:integer("expires_at",{mode:"timestamp_ms"}),updatedAt:integer("updated_at",{mode:"timestamp_ms"}).notNull()});
+export const projects=sqliteTable("projects",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),name:text("name").notNull(),styleProfileJson:text("style_profile_json"),...ts});
+export const jobs=sqliteTable("jobs",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),parentJobId:integer("parent_job_id"),type:text("type").notNull(),status:text("status").notNull(),sourceId:integer("source_id"),inputJson:text("input_json"),outputJson:text("output_json"),inputFileId:integer("input_file_id"),outputFileId:integer("output_file_id"),selectedOutputsJson:text("selected_outputs_json"),contextJson:text("context_json"),idempotencyKey:text("idempotency_key"),styleProfileId:integer("style_profile_id"),promptVersion:text("prompt_version"),resultId:integer("result_id"),provider:text("provider"),model:text("model"),tokensInput:integer("tokens_input"),tokensOutput:integer("tokens_output"),costUsdMicros:integer("cost_usd_micros"),creditsReserved:integer("credits_reserved").notNull().default(0),creditsCharged:integer("credits_charged").notNull().default(0),attempts:integer("attempts").notNull().default(0),errorCode:text("error_code"),errorMessage:text("error_message"),telegramChatId:text("telegram_chat_id"),telegramMessageId:integer("telegram_message_id"),expiresAt:integer("expires_at",{mode:"timestamp_ms"}),isSaved:integer("is_saved",{mode:"boolean"}).notNull().default(false),...ts});
+export const files=sqliteTable("files",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),jobId:integer("job_id"),sourceId:integer("source_id"),storageType:text("storage_type").notNull(),telegramFileId:text("telegram_file_id"),telegramFileUniqueId:text("telegram_file_unique_id"),r2Key:text("r2_key"),mimeType:text("mime_type"),fileName:text("file_name"),sizeBytes:integer("size_bytes"),expiresAt:integer("expires_at",{mode:"timestamp_ms"}),isSaved:integer("is_saved",{mode:"boolean"}).notNull().default(false),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull()});
+export const creditLedger=sqliteTable("credit_ledger",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),delta:integer("delta").notNull(),balanceAfter:integer("balance_after").notNull(),reason:text("reason").notNull(),jobId:integer("job_id"),paymentId:integer("payment_id"),adminId:integer("admin_id"),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull()});
+export const creditTransactions=sqliteTable("credit_transactions",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),type:text("type").notNull(),delta:integer("delta").notNull(),balanceAfter:integer("balance_after").notNull(),jobId:integer("job_id"),paymentId:integer("payment_id"),adminId:integer("admin_id"),reference:text("reference"),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull()},t=>({referenceIdx:index("idx_transactions_reference").on(t.reference)}));
+export const pricing=sqliteTable("pricing",{id:integer("id").primaryKey({autoIncrement:true}),key:text("key").notNull().unique(),type:text("type").notNull(),creditsCost:integer("credits_cost"),starsPrice:integer("stars_price"),includedCredits:integer("included_credits"),durationDays:integer("duration_days"),isActive:integer("is_active",{mode:"boolean"}).notNull().default(true),updatedBy:integer("updated_by"),...ts});
+export const subscriptions=sqliteTable("subscriptions",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),plan:text("plan").notNull(),provider:text("provider").notNull(),starsAmount:integer("stars_amount"),status:text("status").notNull(),currentPeriodStart:integer("current_period_start",{mode:"timestamp_ms"}),expiresAt:integer("expires_at",{mode:"timestamp_ms"}),telegramPaymentChargeId:text("telegram_payment_charge_id"),invoicePayload:text("invoice_payload"),isRecurring:integer("is_recurring",{mode:"boolean"}).notNull().default(false),canceledAt:integer("canceled_at",{mode:"timestamp_ms"}),...ts});
+export const payments=sqliteTable("payments",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),provider:text("provider").notNull(),kind:text("kind").notNull(),telegramPaymentChargeId:text("telegram_payment_charge_id").unique(),invoicePayload:text("invoice_payload").unique(),currency:text("currency").notNull(),starsAmount:integer("stars_amount").notNull(),status:text("status").notNull(),productKey:text("product_key"),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull(),refundedAt:integer("refunded_at",{mode:"timestamp_ms"})});
+export const adminUsers=sqliteTable("admin_users",{userId:integer("user_id").primaryKey(),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull()});
+export const adminAuditLog=sqliteTable("admin_audit_log",{id:integer("id").primaryKey({autoIncrement:true}),adminUserId:integer("admin_user_id").notNull(),action:text("action").notNull(),targetUserId:integer("target_user_id"),entityType:text("entity_type"),entityId:integer("entity_id"),oldValueJson:text("old_value_json"),newValueJson:text("new_value_json"),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull()});
+export const settings=sqliteTable("settings",{key:text("key").primaryKey(),value:text("value").notNull(),updatedAt:integer("updated_at",{mode:"timestamp_ms"}).notNull(),updatedBy:integer("updated_by")});
+export const sources=sqliteTable("sources",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),type:text("type").notNull(),originalName:text("original_name"),mimeType:text("mime_type"),sizeBytes:integer("size_bytes"),extractedText:text("extracted_text"),analysisJson:text("analysis_json"),r2Key:text("r2_key"),expiresAt:integer("expires_at",{mode:"timestamp_ms"}),...ts});
+export const styleProfiles=sqliteTable("style_profiles",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),profileJson:text("profile_json").notNull(),isActive:integer("is_active",{mode:"boolean"}).notNull().default(true),...ts});
+export const contentPlans=sqliteTable("content_plans",{id:integer("id").primaryKey({autoIncrement:true}),jobId:integer("job_id").notNull(),userId:integer("user_id").notNull(),sourceId:integer("source_id"),topic:text("topic").notNull(),goal:text("goal").notNull(),platform:text("platform").notNull(),style:text("style").notNull(),status:text("status").notNull(),...ts});
+export const contentPlanDays=sqliteTable("content_plan_days",{id:integer("id").primaryKey({autoIncrement:true}),planId:integer("plan_id").notNull(),position:integer("position").notNull(),day:text("day").notNull(),title:text("title").notNull(),goal:text("goal").notNull(),format:text("format").notNull(),hook:text("hook").notNull(),angle:text("angle").notNull(),mainThought:text("main_thought").notNull(),cta:text("cta").notNull(),status:text("status").notNull().default("○"),jobId:integer("job_id"),resultId:integer("result_id"),updatedAt:integer("updated_at",{mode:"timestamp_ms"}).notNull()});
+export const jobResults=sqliteTable("job_results",{id:integer("id").primaryKey({autoIncrement:true}),jobId:integer("job_id").notNull(),userId:integer("user_id").notNull(),resultType:text("result_type").notNull(),position:integer("position").notNull(),status:text("status").notNull(),contentJson:text("content_json"),creditsReserved:integer("credits_reserved").notNull().default(0),creditsCharged:integer("credits_charged").notNull().default(0),telegramChatId:text("telegram_chat_id"),telegramMessageId:integer("telegram_message_id"),errorCode:text("error_code"),errorMessage:text("error_message"),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull(),completedAt:integer("completed_at",{mode:"timestamp_ms"})});
+export const jobAttempts=sqliteTable("job_attempts",{id:integer("id").primaryKey({autoIncrement:true}),jobId:integer("job_id").notNull(),attemptNo:integer("attempt_no").notNull(),status:text("status").notNull(),provider:text("provider"),model:text("model"),inputTokens:integer("input_tokens"),outputTokens:integer("output_tokens"),costUsdMicros:integer("cost_usd_micros"),durationMs:integer("duration_ms"),promptVersion:text("prompt_version"),errorCode:text("error_code"),errorMessage:text("error_message"),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull(),startedAt:integer("started_at",{mode:"timestamp_ms"}),completedAt:integer("completed_at",{mode:"timestamp_ms"})});
+export const deliveries=sqliteTable("deliveries",{id:integer("id").primaryKey({autoIncrement:true}),resultId:integer("result_id").notNull().unique(),userId:integer("user_id").notNull(),position:integer("position").notNull(),chatId:text("chat_id").notNull(),messageId:integer("message_id"),status:text("status").notNull(),attempts:integer("attempts").notNull().default(0),nextRetryAt:integer("next_retry_at",{mode:"timestamp_ms"}),lastError:text("last_error"),createdAt:integer("created_at",{mode:"timestamp_ms"}),sentAt:integer("sent_at",{mode:"timestamp_ms"})});
+export const history=sqliteTable("history",{id:integer("id").primaryKey({autoIncrement:true}),userId:integer("user_id").notNull(),resultId:integer("result_id").notNull(),expiresAt:integer("expires_at",{mode:"timestamp_ms"}),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull(),deletedAt:integer("deleted_at",{mode:"timestamp_ms"}),resultType:text("result_type"),title:text("title")});
+export const sessions=userSessions;
+export const updateReceipts=sqliteTable("update_receipts",{updateId:text("update_id").primaryKey(),createdAt:integer("created_at",{mode:"timestamp_ms"}).notNull()});

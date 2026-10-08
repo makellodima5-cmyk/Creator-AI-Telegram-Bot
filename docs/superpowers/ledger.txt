@@ -1,0 +1,7 @@
+# SDD ledger — plan: docs/superpowers/plans/2026-10-08-final-t3-alignment.md
+
+Pre-flight: shared interfaces are keyboards → webhook, copy → webhook/runner, D1 schema → all persistence paths, and pricing → create/admin/billing.
+
+Ruling: use explicit latest T3 UX over stale implementation text — the Project Sources and latest user clarification are the binding product authority; cost if wrong: user-facing behavior would drift from the agreed final UX.
+Ruling: keep D1 migrations forward-only — 0001 is already applied history; cost if wrong: rewriting an applied migration can break existing databases.
+Ruling: keep Settings blocked during active Generation Lock except Account/Tariffs/Credits — this follows the latest explicit project UX decision despite an internally inconsistent older T3 sentence; cost if wrong: one navigation class would be accessible during active generation.

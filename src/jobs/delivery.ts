@@ -1,4 +1,48 @@
-import type{Bindings}from"../env";import{sendMessage,editMessageText}from"../telegram/api";import{postResult,scriptResult,planResult,styleResult}from"../telegram/keyboards";import{resultMarkup}from"./runner";import{getSettingNumber,getSettingJson}from"../ai/router";import{ru}from"../text";
-export async function deliverBatch(batch:MessageBatch<unknown>,env:Bindings){for(const m of batch.messages){try{await deliverOne(env,Number((m.body as any).deliveryId));m.ack()}catch(e){console.error("delivery_error",String(e));m.retry()}}}
-export async function deliverOne(env:Bindings,id:number){const c=await env.DB.prepare("UPDATE deliveries SET status='sending',attempts=attempts+1 WHERE id=? AND status='queued'").bind(id).run();if(c.meta.changes!==1)return;const d=await env.DB.prepare("SELECT * FROM deliveries WHERE id=?").bind(id).first<any>(),r=await env.DB.prepare("SELECT * FROM job_results WHERE id=? AND status='completed'").bind(d?.result_id).first<any>();if(!d||!r)return;const j=await env.DB.prepare("SELECT * FROM jobs WHERE id=?").bind(r.job_id).first<any>();try{const o=JSON.parse(r.content_json??"{}"),text=resultMarkup(String(r.result_type),o).slice(0,4000);let m:any;if(j?.telegram_message_id)m=await editMessageText(env,d.chat_id,Number(j.telegram_message_id),text,keyboardFor(r,j));else m=await sendMessage(env,d.chat_id,text,keyboardFor(r,j));await env.DB.prepare("UPDATE job_results SET telegram_chat_id=?,telegram_message_id=? WHERE id=?").bind(d.chat_id,m.message_id,r.id).run();await env.DB.prepare("UPDATE deliveries SET status='sent',message_id=?,sent_at=?,last_error=NULL,next_retry_at=NULL WHERE id=?").bind(m.message_id,Date.now(),id).run()}catch(e){const attempt=Number(d.attempts??0),max=await getSettingNumber(env,"delivery_max_attempts",5);if(attempt<max){const back=await getSettingJson<number[]>(env,"delivery_backoff_seconds",[15,60,300,900,3600]),delay=Math.max(1,Number(back[Math.min(attempt-1,back.length-1)]??60));await env.DB.prepare("UPDATE deliveries SET status='queued',last_error=?,next_retry_at=? WHERE id=?").bind(String(e).slice(0,500),Date.now()+delay*1000,id).run();await env.DELIVERY_QUEUE.send({deliveryId:id},{delaySeconds:delay}).catch(()=>{})}else{await env.DB.prepare("UPDATE deliveries SET status='failed',last_error=?,next_retry_at=NULL WHERE id=?").bind(String(e).slice(0,500),id).run();await sendMessage(env,d.chat_id,ru.deliveryError).catch(()=>{})}throw e}}
-function keyboardFor(r:any,j:any){const t=String(r.result_type);if(t==="style_profile")return styleResult(Number(r.id));if(t==="script"||t==="repurpose_tiktok"||t==="repurpose_youtube")return scriptResult(Number(r.id));if(t==="content_plan"||t==="repurpose_plan"){const o=JSON.parse(r.content_json??"{}");return planResult(Number(j.id),Array.isArray(o.days)?o.days:[],Number(r.id))}return postResult(Number(r.id))}
+import type{Bindings}from"../env";
+import{sendMessage,editMessageText}from"../telegram/api";
+import{resultMarkup}from"./runner";
+import{postResult}from"../telegram/keyboards";
+
+async function settingNumber(env:Bindings,key:string,fallback:number){
+ const row=await env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(key).first<any>();
+ const n=Number(row?.value);return Number.isFinite(n)&&n>0?n:fallback;
+}
+async function settingArray(env:Bindings,key:string,fallback:number[]){
+ const row=await env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(key).first<any>();
+ try{const a=JSON.parse(String(row?.value??""));return Array.isArray(a)&&a.length?a.map(Number):fallback}catch{return fallback}
+}
+export async function deliverBatch(batch:MessageBatch<any>,env:Bindings){
+ for(const m of batch.messages){
+  try{await deliverOne(env,Number(m.body?.deliveryId));m.ack()}
+  catch(e){await markDeliveryFailure(env,Number(m.body?.deliveryId),String(e).slice(0,500));m.retry()}
+ }
+}
+async function deliverOne(env:Bindings,id:number){
+ const d=await env.DB.prepare("SELECT * FROM deliveries WHERE id=?").bind(id).first<any>();
+ if(!d||d.status==="sent")return;
+ const claim=await env.DB.prepare("UPDATE deliveries SET status='sending',attempts=attempts+1 WHERE id=? AND status='queued'").bind(id).run();
+ if(claim.meta.changes!==1) return;
+ const r=await env.DB.prepare("SELECT * FROM job_results WHERE id=? AND user_id=?").bind(d.result_id,d.user_id).first<any>();
+ if(!r||r.status!=="completed")throw new Error("result_not_ready");
+ const j=await env.DB.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").bind(r.job_id,d.user_id).first<any>();
+ if(!j)throw new Error("job_missing");
+ const text=resultMarkup(String(r.result_type),JSON.parse(r.content_json||"{}")),markup=postResult(Number(r.id));
+ let msg:any;
+ if(Number(d.position)===0&&j.telegram_message_id)msg=await editMessageText(env,String(d.chat_id),Number(j.telegram_message_id),text,markup);
+ else msg=await sendMessage(env,String(d.chat_id),text,markup);
+ await env.DB.prepare("UPDATE deliveries SET status='sent',message_id=?,sent_at=?,last_error=NULL WHERE id=?").bind(Number(msg.message_id),Date.now(),id).run();
+ await env.DB.prepare("UPDATE job_results SET telegram_chat_id=?,telegram_message_id=? WHERE id=?").bind(String(d.chat_id),Number(msg.message_id),r.id).run();
+}
+async function markDeliveryFailure(env:Bindings,id:number,error:string){
+ if(!id)return;
+ const d=await env.DB.prepare("SELECT * FROM deliveries WHERE id=?").bind(id).first<any>();if(!d||d.status==="sent")return;
+ const max=await settingNumber(env,"delivery_max_attempts",5),backoff=await settingArray(env,"delivery_backoff_seconds",[15,60,300,900,3600]);
+ const attempts=Number(d.attempts??0);
+ const terminal=attempts>=max;
+ if(terminal){
+  await env.DB.prepare("UPDATE deliveries SET status='failed',last_error=?,next_retry_at=NULL WHERE id=?").bind(error,id).run();
+ }else{
+  const delay=backoff[Math.min(Math.max(attempts-1,0),backoff.length-1)]||backoff[backoff.length-1]||60;
+  await env.DB.prepare("UPDATE deliveries SET status='queued',last_error=?,next_retry_at=? WHERE id=?").bind(error,Date.now()+delay*1000,id).run();
+ }
+}
