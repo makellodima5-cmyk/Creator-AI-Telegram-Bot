@@ -73,7 +73,7 @@ describe("Final T3 UX contract",()=>{
   const t=copyFor("ru");
   expect(t.start("Алекс")).toBe("🤖 Привет, Алекс!\\n\\nCreator AI превращает идеи и готовые материалы в контент:\\n\\n✦ Посты и сценарии\\n✦ Repurpose и контент-планы\\n✦ Адаптация под разные площадки\\n✦ Твой стиль\\n\\n⚡ Меньше времени. Больше контента.\\n\\nЧто создаём сегодня? 👇");
   expect(t.postEntry).toBe("✦ Creator AI / Post Maker\\n\\nПревратим твою идею в сильный пост.\\n\\nНапиши тему или набросок.\\n\\nЯ помогу:\\n— Hook\\n— структура\\n— главная мысль\\n— адаптация под площадку\\n\\nНачни с идеи — остальное сделаем вместе.");
-  expect(t.scriptEntry).toBe("✦ Creator AI / Script Maker\\n\\nПревратим твою идею в ролик, который хочется досмотреть.\\n\\nНапиши тему или набросок.\\n\\nЯ помогу:\\n— Hook\\n— структура\\n— текст диктора\\n— визуал\\n— текст на экране\\n— CTA\\n\\nНачни с идеи — остальное сделаем вместе.");
+  expect(t.scriptEntry).toBe("✦ Creator AI / Script Maker\\n\\nПревратим твою идею в ролик, который хочется досмотреть.\\n\\nНапиши тему, идею или что хочешь донести зрителю.\\n\\nЯ помогу:\\n— создать сильный Hook с первых секунд\\n— выстроить сценарий и динамику\\n— написать текст для диктора\\n— подобрать визуал\\n— добавить текст на экран и CTA\\n\\nНачни с идеи — сценарий соберём вместе.");
   expect(t.repEntry).toBe("✦ Creator AI / Repurpose\\n\\nПревратим твой готовый материал в контент для разных площадок.\\n\\nОтправь один материал:\\n\\n📝 Текст — одним сообщением, до 4 000 символов\\n\\n📄 Документ — PDF, DOC или TXT, до 5 MB и до 20 000 символов текста после обработки\\n\\nОдин материал. Несколько форматов. Больше контента.");
   expect(t.planEntry).toBe("✦ Creator AI / Content Plan\\n\\nСоздадим контент-план на 7 дней, чтобы тебе не приходилось каждый день думать, что публиковать.\\n\\nНапиши свою тему, нишу или цель — например, что хочешь продвигать или о чём рассказывать.\\n\\n7 дней. 7 идей. Один понятный план действий.");
   expect(t.settings).toBe("⚙️ Creator AI / Настройки\\n\\nЗдесь можно изменить основные параметры Creator AI.");
@@ -95,4 +95,14 @@ describe("Final T3 UX contract",()=>{
   expect(readFileSync("src/telegram/webhook.ts","utf8")).toContain("setChatMenuButton");
   expect(readFileSync("src/telegram/webhook.ts","utf8")).toContain("setMyCommands");
  });
+ it("keeps every asserted user keyboard at three rows or fewer",()=>{
+  const keyboards=[postConfig({topic:"",platform:"",style:"",length:""}),scriptConfig({topic:"",platform:"",style:"",duration:""}),planConfig({topic:"",goal:"",platform:"",style:""}),repurposeTargets([]),postResult(1),historyItem(1),settingsKeyboard(),tariffsKeyboard(),creditsKeyboard(),styleKeyboard(0),styleKeyboard(5),styleKeyboard(20)];
+  for(const kb of keyboards)expect(kb.inline_keyboard.length).toBeLessThanOrEqual(3);
+  expect((planResult as any)(1,Array.from({length:7},(_,i)=>({day:["Пн","Вт","Ср","Чт","Пт","Сб","Вс"][i],title:"Idea "+i})),1,"ru").inline_keyboard).toHaveLength(3);
+ });
+ it("accepts platform-specific Content Plan formats instead of a fixed Post/Short whitelist",()=>{
+  const out={topic:"AI",days:Array.from({length:7},(_,i)=>({day:"D"+(i+1),title:"Idea",goal:"Рост",format:i===1?"Опрос":"Пост",hook:"Hook",angle:"Angle",mainThought:"Thought",cta:"CTA",status:"○"}))};
+  expect(validateOutput("content_plan",out)).toEqual({ok:true});
+ });
+
 });
