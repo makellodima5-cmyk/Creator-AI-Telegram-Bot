@@ -220,7 +220,7 @@ async function openMain(env:Bindings,userId:number,chatId:string,msg?:Any){
 }
 async function openFeature(env:Bindings,userId:number,chatId:string,flow:string,msg?:Any){
  const u=await userById(env,userId),t=tx(u);
- const d=flow==="post"?{topic:"",platform:"telegram",style:"conversational",length:"short"}:flow==="script"?{topic:"",platform:"tiktok",style:"dynamic",duration:"30"}:flow==="plan"?{topic:"",goal:"growth",platform:"telegram",style:"expert"}:{sourceId:null,selectedOutputs:[]};
+ const d=flow==="post"?{topic:"",platform:"",style:"",length:""}:flow==="script"?{topic:"",platform:"",style:"",duration:""}:flow==="plan"?{topic:"",goal:"",platform:"",style:""}:{sourceId:null,selectedOutputs:[]};
  const body=flow==="post"?t.postEntry:flow==="script"?t.scriptEntry:flow==="plan"?t.planEntry:t.repEntry,kb={inline_keyboard:[[getLang(u)==="en"?{text:"↩️ In menu",callback_data:"menu:back"}:{text:"↩️ В меню",callback_data:"menu:back"}]]};
  if(msg?.message_id){await editMessageText(env,chatId,Number(msg.message_id),body,kb);return saveSession(env,userId,flow,flow==="repurpose"?"source":"topic",d,Number(msg.message_id),chatId)}
  const m=await sendMessage(env,chatId,body,kb);return saveSession(env,userId,flow,flow==="repurpose"?"source":"topic",d,Number(m.message_id),chatId);
@@ -234,18 +234,20 @@ async function openStyle(env:Bindings,userId:number,chatId:string,msg?:Any){
 async function configOptions(env:Bindings,userId:number,chatId:string,data:string,msg:Any){
  const u=await userById(env,userId),lang=getLang(u);
  const items:Record<string,{items:{text:string;data:string}[];back:string}>={
-  "cfg:post:platform":{items:lang==="en"?[["📱 Telegram","telegram"],["📸 Instagram","instagram"],["🎵 TikTok","tiktok"],["▶️ YouTube","youtube"]]:[["📱 Telegram","telegram"],["📸 Instagram","instagram"],["🎵 TikTok","tiktok"],["▶️ YouTube","youtube"]],back:"cfgback:post"},
-  "cfg:post:style":{items:lang==="en"?[["💼 Expert","expert"],["😎 Conversational","conversational"],["📰 News","news"],["💰 Sales","sales"]]:[["💼 Экспертный","expert"],["😎 Разговорный","conversational"],["📰 Новостной","news"],["💰 Продающий","sales"]],back:"cfgback:post"},
-  "cfg:post:length":{items:lang==="en"?[["⚡ Short","short"],["📝 Medium","medium"],["📚 Long","long"]]:[["⚡ Короткий","short"],["📝 Средний","medium"],["📚 Длинный","long"]],back:"cfgback:post"},
-  "cfg:script:platform":{items:lang==="en"?[["🎵 TikTok","tiktok"],["📸 Reels","instagram"],["▶️ YouTube Shorts","youtube"]]:[["🎵 TikTok","tiktok"],["📸 Reels","instagram"],["▶️ YouTube Shorts","youtube"]],back:"cfgback:script"},
-  "cfg:script:style":{items:lang==="en"?[["💼 Expert","expert"],["😎 Conversational","conversational"],["⚡ Dynamic","dynamic"],["💰 Sales","sales"]]:[["💼 Экспертная","expert"],["😎 Разговорная","conversational"],["⚡ Динамичная","dynamic"],["💰 Продающая","sales"]],back:"cfgback:script"},
+  "cfg:post:platform":{items:[["Telegram","telegram"],["Instagram","instagram"],["TikTok","tiktok"],["YouTube","youtube"]],back:"cfgback:post"},
+  "cfg:post:style":{items:[["Экспертный","expert"],["Разговорный","conversational"],["Новостной","news"],["Продающий","sales"]],back:"cfgback:post"},
+  "cfg:post:length":{items:[["Короткий","short"],["Средний","medium"],["Длинный","long"]],back:"cfgback:post"},
+  "cfg:script:platform":{items:[["TikTok","tiktok"],["Reels","instagram"],["YouTube Shorts","youtube"]],back:"cfgback:script"},
+  "cfg:script:style":{items:[["Экспертная","expert"],["Разговорная","conversational"],["Динамичная","dynamic"],["Продающая","sales"]],back:"cfgback:script"},
   "cfg:script:duration":{items:["15","30","45","60"].map(x=>({text:lang==="en"?x+" sec":x+" сек",data:x})),back:"cfgback:script"},
-  "cfg:plan:goal":{items:lang==="en"?[["📈 Growth","growth"],["💰 Sales","sales"],["❤️ Engagement","engagement"],["🧠 Expertise","expertise"]]:[["📈 Рост","growth"],["💰 Продажи","sales"],["❤️ Вовлечение","engagement"],["🧠 Экспертность","expertise"]],back:"cfgback:plan"},
-  "cfg:plan:platform":{items:[["📱 Telegram","telegram"],["📸 Instagram","instagram"],["🎵 TikTok","tiktok"],["▶️ YouTube","youtube"]],back:"cfgback:plan"},
-  "cfg:plan:style":{items:lang==="en"?[["💼 Expert","expert"],["😎 Conversational","conversational"],["📰 News","news"],["💰 Sales","sales"]]:[["💼 Экспертный","expert"],["😎 Разговорный","conversational"],["📰 Новостной","news"],["💰 Продающий","sales"]],back:"cfgback:plan"}
+  "cfg:plan:goal":{items:[["Рост","growth"],["Продажи","sales"],["Вовлечение","engagement"],["Экспертность","expertise"]],back:"cfgback:plan"},
+  "cfg:plan:platform":{items:[["Telegram","telegram"],["Instagram","instagram"],["TikTok","tiktok"],["YouTube","youtube"]],back:"cfgback:plan"},
+  "cfg:plan:style":{items:[["Экспертный","expert"],["Разговорный","conversational"],["Новостной","news"],["Продающий","sales"]],back:"cfgback:plan"}
  };
  const x=items[data];if(!x)return;
- const rows:any[][]=[];for(let i=0;i<x.items.length;i+=2)rows.push(x.items.slice(i,i+2).map(z=>({text:z.text,callback_data:"sel:"+z.data})));
+ const rows:any[][]=[];for(let i=0;i<x.items.length;i+=2)rows.push(x.items.slice(i,i+2).map(z=>({text:lang==="en"?({
+   "Telegram":"Telegram","Instagram":"Instagram","TikTok":"TikTok","YouTube":"YouTube","Экспертный":"Expert","Разговорный":"Conversational","Новостной":"News","Продающий":"Sales","Короткий":"Short","Средний":"Medium","Длинный":"Long","Экспертная":"Expert","Разговорная":"Conversational","Динамичная":"Dynamic","Продающая":"Sales","Рост":"Growth","Продажи":"Sales","Вовлечение":"Engagement","Экспертность":"Expertise","Reels":"Reels","YouTube Shorts":"YouTube Shorts"
+  } as Record<string,string>)[z.text]??z.text:z.text,callback_data:"sel:"+z.data})));
  rows.push([{text:lang==="en"?"↩️ Back":"↩️ Назад",callback_data:x.back}]);
  return editMessageText(env,chatId,Number(msg.message_id),lang==="en"?"Choose a parameter:":"Выбери параметр:",{inline_keyboard:rows});
 }
