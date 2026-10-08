@@ -75,9 +75,7 @@ export const repurposeResult=postResult;
 export const styleResult=postResult;
 export const planResult=(jobId:number,days:any[],_resultId:number,lang:Lang="ru")=>{
  const buttons=days.map((d:any,i:number)=>b("📅 "+String(d.day??(lang==="en"?"Day ":"День ")+(i+1))+" · "+String(d.title??"").slice(0,16),"dayview:"+jobId+":"+i));
- const rows:any[][]=[];for(let i=0;i<buttons.length;i+=3)rows.push(buttons.slice(i,i+3));
- rows.push([tr(lang,"↩️ В меню","↩️ In menu")?menuBack(lang):menuBack(lang)]);
- return{inline_keyboard:rows};
+ return{inline_keyboard:[buttons.slice(0,3),buttons.slice(3,5),buttons.slice(5,7)]};
 };
 
 export const historyItem=(id:number,lang:Lang="ru")=>({inline_keyboard:[
@@ -96,7 +94,7 @@ export const insufficientKeyboard=(lang:Lang="ru")=>({inline_keyboard:[
  [b("🔹 "+tr(lang,"Купить кредиты","Buy credits"),"menu:credits"),b("💎 "+tr(lang,"Изменить тариф","Change plan"),"menu:pricing")],
  [b("❌ "+tr(lang,"Отмена","Cancel"),"cancel")]
 ]});
-export const errorKeyboard=(id:number,lang:Lang="ru")=>({inline_keyboard:[[b("🔄 "+tr(lang,"Попробовать ещё раз","Try again"),"retry:"+id)],[b("❌ "+tr(lang,"Отмена","Cancel"),"cancel")]});
+export const errorKeyboard=(id:number,lang:Lang="ru")=>({inline_keyboard:[[b("🔄 "+tr(lang,"Попробовать ещё раз","Try again"),"retry:"+id)],[b("❌ "+tr(lang,"Отмена","Cancel"),"cancel")]]});
 export const repurposeFailureKeyboard=(id:number,lang:Lang="ru")=>({inline_keyboard:[[b("🔄 "+tr(lang,"Повторить неудачные","Retry failed"),"rep-retry:"+id)]]);
 export const settingsKeyboard=(lang:Lang="ru")=>({inline_keyboard:[
  [b("👤 "+tr(lang,"Аккаунт","Account"),"settings:profile"),b("🌐 "+tr(lang,"Язык","Language"),"settings:language")],
@@ -105,7 +103,7 @@ export const settingsKeyboard=(lang:Lang="ru")=>({inline_keyboard:[
  [menuBack(lang)]
 ]});
 export const accountKeyboard=(lang:Lang="ru")=>({inline_keyboard:[[back(lang)] ]});
-export const languageKeyboard=(lang:Lang="ru")=>({inline_keyboard:[[b("🇷🇺 Русский","settings:language:ru"),b("🇬🇧 English","settings:language:en")],[back(lang)]});
+export const languageKeyboard=(lang:Lang="ru")=>({inline_keyboard:[[b("🇷🇺 Русский","settings:language:ru"),b("🇬🇧 English","settings:language:en")],[back(lang)]]});
 export const notificationKeyboard=(enabled:boolean,lang:Lang="ru")=>({inline_keyboard:[[b(enabled?"🔕 "+tr(lang,"Выключить уведомления","Turn off notifications"):"🔔 "+tr(lang,"Включить уведомления","Turn on notifications"),"settings:toggle")],[back(lang)]});
 export const helpKeyboard=(lang:Lang="ru",telegramUrl?:string,emailUrl?:string)=>{
  const support=telegramUrl?{text:"💬 "+tr(lang,"Поддержка в Telegram","Telegram support"),url:telegramUrl}:b("💬 "+tr(lang,"Поддержка в Telegram","Telegram support"),"support:telegram");
