@@ -51,7 +51,7 @@ export const scriptResult=postResult;
 export const genericResult=postResult;
 export const repurposeResult=postResult;
 export const styleResult=postResult;
-export const planResult=(jobId:number,days:any[],_resultId:number)=>{const buttons=days.map((d:any,i:number)=>b("📅 "+String(d.day??("Day "+(i+1)))+" · "+String(d.title??"").slice(0,16),"dayview:"+jobId+":"+i));const rows:any[][]=[];for(let i=0;i<buttons.length;i+=3)rows.push(buttons.slice(i,i+3));return{inline_keyboard:rows}};
+export const planResult=(jobId:number,days:any[],_resultId:number)=>{const buttons=days.map((d:any,i:number)=>b("📅 "+String(d.day??("Day "+(i+1)))+" · "+String(d.title??"").slice(0,16),"dayview:"+jobId+":"+i));const rows:any[][]=[];for(let i=0;i<buttons.length;i+=3)rows.push(buttons.slice(i,i+3));return{inline_keyboard:rows.length?rows:[[b("↩️ В меню","menu:back")]]}};
 export const historyItem=(id:number)=>({inline_keyboard:[
   [b("▶️ Продолжить","hcontinue:"+id)],
   [b("📋 Скопировать","hcopy:"+id),b("🗑 Удалить из истории","hdelete:"+id)],
