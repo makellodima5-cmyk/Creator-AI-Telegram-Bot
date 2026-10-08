@@ -126,7 +126,7 @@ export const adminMenu=(lang:Lang="ru")=>({inline_keyboard:[
 ]});
 export const adminPricesMenu=(lang:Lang="ru")=>({inline_keyboard:[
  [b("💎 "+tr(lang,"Тарифы","Plans"),"admin:tariffs"),b("🔹 "+tr(lang,"Пакеты кредитов","Credit packs"),"admin:credit_packages")],
- [b("🤖 "+tr(lang,"AI-операции","AI operations"),b("♻️ Repurpose","admin:repurpose_prices")],
+ [b("🤖 "+tr(lang,"AI-операции","AI operations"),"admin:ai_prices"),b("♻️ Repurpose","admin:repurpose_prices")],
  [b(back(lang).text,"admin:menu")]
 ]});
 export const adminBack=(lang:Lang="ru")=>({inline_keyboard:[[b(back(lang).text,"admin:menu")] ]});
