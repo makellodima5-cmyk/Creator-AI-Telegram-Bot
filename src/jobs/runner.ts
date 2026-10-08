@@ -1,7 +1,7 @@
 import type {Bindings} from "../env";
 import {generate} from "../ai/engine";
 import {getSettingNumber} from "../ai/router";
-import {ru} from "../text";
+import {copyFor} from "../text";
 import {deleteMessage,editMessageText,sendMessage} from "../telegram/api";
 import {chargeCredits,refundCredits} from "../billing/credits";
 import {storeContentPlan} from "./plan-store";
