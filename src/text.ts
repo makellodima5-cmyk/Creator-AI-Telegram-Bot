@@ -364,24 +364,29 @@ Send them one by one or several in a row.
 🔹 Received: 0 / 20
 
 You can start analysis after 5 examples.`,
-styleCollecting:(count:number)=>`🧠 Done.
+styleInitial:`🧠 Done.
 
 Now send your texts one by one.
 
 First analysis needs at least 5 examples.
-You can send up to 20.
+You can send up to 20.`,
+styleCollecting:(count:number)=>`🧠 Keep sending your texts.
 
 Received: ${count} / 20`,
-styleReady:(count:number)=>`✦ Creator AI / My Style
+styleReady:(count:number,price:number)=>`✦ Creator AI / My Style
 
 Great. There are enough examples for the first analysis.
 
 🔹 Received: ${count} / 20
 
-You can add more examples or start the analysis now.`,
-styleDone:`🧠 Received 20/20 examples.
+You can add more examples or start the analysis now.
 
-That is enough to analyze your style.`,
+💳 Generation cost: ${price} 🔹`,
+styleDone:(price:number)=>`🧠 Received 20/20 examples.
+
+That is enough to analyze your style.
+
+💳 Generation cost: ${price} 🔹`,
 history:`✦ CREATOR AI / HISTORY
 
 Your personal library of important materials.
@@ -433,11 +438,12 @@ Current Creator AI Terms of Use.`,
 privacy:`🛡️ Privacy
 
 Current Creator AI Privacy Policy.`,
-locked:`⏳ Generation is still running…
+locked:`⏳ Generation is still running
 
 Creator AI is creating your content.
 
-Wait for the current operation to finish and try again.`,
+Wait for the current operation to finish and try again.`, 
+generationCancelInfo:`An active AI Job cannot be cancelled.`,
 aiError:`😔 Something went wrong
 
 We could not create the content.
@@ -456,6 +462,11 @@ Send text, PDF, DOC or TXT.`,
 sourceInvalid:`⚠️ The material could not be processed
 
 Check the format and size or send another material.`,
+sourceTooLarge:`⚠️ Material is too large
+
+I cannot process this volume in full.
+
+Try sending a shorter version of the material.`,
 saved:`⭐ Saved to history.`,
 alreadySaved:`⭐ This result is already saved to history.`,
 deleted:`🗑 Removed from history.`,
@@ -505,34 +516,61 @@ Just add credits and keep creating.
 ⚡ Credits can be used for all available generations.
 
 Buy only what you need.`,
-postConfig:(price:number,d:any)=>`✦ Creator AI / Post Maker
+postConfig:(price:number,_d:any)=>`✦ Creator AI / Post Maker
 
 Your idea is ready.
 Now tune how it should look.
 
 💳 Generation cost: ${price} 🔹
 
-📱 Platform: ${d.platform}
-🎨 Style: ${d.style}
-📏 Size: ${d.length}`,
-scriptConfig:(price:number,d:any)=>`🎬 Creator AI / Script Maker
+📱 Platform
+🎨 Style
+📏 Size`,
+postEditConfig:(price:number)=>`✦ CREATOR AI / POST MAKER
+
+Change the post parameters.
+
+💳 Generation cost: ${price} 🔹
+
+📱 Platform
+🎨 Style
+📏 Size`,
+scriptConfig:(price:number,_d:any)=>`🎬 Creator AI / Script Maker
 
 Choose what your video will be like.
 
 💳 Generation cost: ${price} 🔹
 
-📱 Format: ${d.platform}
-🎨 Style: ${d.style}
-⏱️ Duration: ${d.duration} sec`,
-planConfig:(price:number,d:any)=>`📅 Creator AI / Content Plan
+📱 Format
+🎨 Style
+⏱️ Duration`,
+scriptEditConfig:(price:number)=>`🎬 CREATOR AI / SCRIPT MAKER
+
+Change the script parameters.
+
+💳 Generation cost: ${price} 🔹
+
+📱 Format
+🎨 Style
+⏱️ Duration`,
+planConfig:(price:number,_d:any)=>`📅 Creator AI / Content Plan
 
 Tune your content plan parameters.
 
 💳 Generation cost: ${price} 🔹
 
-🎯 Goal: ${d.goal}
-📱 Platform: ${d.platform}
-🎨 Style: ${d.style}`,
+🎯 Goal
+📱 Platform
+🎨 Style`,
+planEditConfig:(price:number)=>`📅 CREATOR AI / CONTENT PLAN
+
+Change the content plan parameters.
+
+💳 Generation cost: ${price} 🔹
+
+🎯 Goal
+📱 Platform
+🎨 Style`,
 processingSteps:(type:string)=>type==="post"?["🧠 Analyzing the material…","🔎 Finding the key points…","✍️ Adapting the content…","✨ Final touches…"]:type==="script"?["🧠 Analyzing the idea…","🔥 Building the Hook…","✍️ Writing the script…","✨ Final touches…"]:["🧠 Analyzing the topic…","🎯 Defining content goals…","💡 Creating ideas for the week…","✨ Forming the content plan…"]
 };
 
