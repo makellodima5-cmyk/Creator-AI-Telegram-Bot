@@ -9,7 +9,7 @@ async function due(env:Bindings,now:number){
  }
 }
 async function recoverStale(env:Bindings,now:number){
- await env.DB.prepare("UPDATE deliveries SET status='queued',next_retry_at=? WHERE status='sending' AND updated_at IS NOT NULL AND updated_at<?").bind(now+60000,now-600000).run().catch(()=>{});
+ await env.DB.prepare("UPDATE deliveries SET status='queued',next_retry_at=? WHERE status='sending' AND created_at<?").bind(now+60000,now-600000).run().catch(()=>{});
 }
 export async function cleanup(env:Bindings){
  const now=Date.now();
