@@ -1,1 +1,42 @@
-const t=(v:any)=>typeof v==="string"&&v.trim().length>0;export function validateOutput(o:string,x:any):any{if(!x||typeof x!=="object")return{ok:false,reason:"not_object"};if(["post","repurpose_telegram","repurpose_instagram"].includes(o))return t(x.title)&&t(x.body??x.content)?{ok:true}:{ok:false,reason:"empty_post"};if(["script","repurpose_tiktok","repurpose_youtube"].includes(o))return t(x.title)&&t(x.hook)&&Array.isArray(x.scenes)&&x.scenes.length>0&&x.scenes.every((s:any)=>t(s.time)&&t(s.spoken)&&t(s.visual)&&t(s.onScreen))&&t(x.cta)?{ok:true}:{ok:false,reason:"bad_script"};if(o==="repurpose_hooks"){if(!Array.isArray(x.hooks)||x.hooks.length!==5||!Array.isArray(x.mechanisms)||x.mechanisms.length!==5)return{ok:false,reason:"hooks_structure"};return new Set(x.hooks.map((v:any)=>String(v).trim().toLowerCase())).size===5&&new Set(x.mechanisms.map((v:any)=>String(v).trim().toLowerCase())).size===5?{ok:true}:{ok:false,reason:"hooks_not_unique"}}if(o==="repurpose_cta"){if(!Array.isArray(x.ctas)||x.ctas.length!==3||!Array.isArray(x.types)||x.types.length!==3)return{ok:false,reason:"cta_structure"};return new Set(x.ctas.map((v:any)=>String(v).trim().toLowerCase())).size===3&&new Set(x.types.map((v:any)=>String(v).trim().toLowerCase())).size===3?{ok:true}:{ok:false,reason:"cta_not_unique"}}if(o==="content_plan"||o==="repurpose_plan"){if(!Array.isArray(x.days)||x.days.length!==7)return{ok:false,reason:"plan_days"};const a=new Set(["Post","Short","Пост","Shorts"]);return x.days.every((d:any)=>t(d.day)&&t(d.title)&&t(d.goal)&&t(d.format)&&t(d.hook)&&t(d.angle)&&t(d.mainThought)&&t(d.cta)&&a.has(String(d.format)))?{ok:true}:{ok:false,reason:"plan_day_invalid"} }return{ok:true}}export function normalizeOutput(_o:string,x:any){return x}
+const t=(v:any)=>typeof v==="string"&&v.trim().length>0;
+const unique=(a:any[])=>new Set(a.map(v=>String(v).trim().toLowerCase())).size===a.length;
+const nonEmptyArray=(a:any[])=>Array.isArray(a)&&a.length>0&&a.every(t);
+const within=(v:any,max:number)=>typeof v==="string"&&v.length<=max;
+
+export function validateOutput(o:string,x:any):any{
+ if(!x||typeof x!=="object")return{ok:false,reason:"not_object"};
+ if(o==="post"||o==="repurpose_telegram"){
+  return t(x.title)&&t(x.body??x.content)&&t(x.hook)&&within(String(x.title),500)?{ok:true}:{ok:false,reason:"bad_post"};
+ }
+ if(o==="repurpose_instagram"){
+  return t(x.hook)&&t(x.body)&&t(x.cta)&&Array.isArray(x.hashtags)&&x.hashtags.every(t)&&x.hashtags.length<=30?{ok:true}:{ok:false,reason:"bad_instagram"};
+ }
+ if(o==="script"||o==="repurpose_tiktok"||o==="repurpose_youtube"){
+  return t(x.title)&&t(x.hook)&&Array.isArray(x.scenes)&&x.scenes.length>0&&x.scenes.length<=60&&x.scenes.every((s:any)=>s&&t(s.time)&&t(s.spoken)&&t(s.visual)&&t(s.onScreen))&&t(x.cta)&&t(x.duration)?{ok:true}:{ok:false,reason:"bad_script"};
+ }
+ if(o==="repurpose_hooks"){
+  if(!Array.isArray(x.hooks)||x.hooks.length!==5||!Array.isArray(x.mechanisms)||x.mechanisms.length!==5)return{ok:false,reason:"hooks_structure"};
+  return x.hooks.every(t)&&x.mechanisms.every(t)&&unique(x.hooks)&&unique(x.mechanisms)?{ok:true}:{ok:false,reason:"hooks_not_unique"};
+ }
+ if(o==="repurpose_cta"){
+  if(!Array.isArray(x.ctas)||x.ctas.length!==3||!Array.isArray(x.types)||x.types.length!==3)return{ok:false,reason:"cta_structure"};
+  return x.ctas.every(t)&&x.types.every(t)&&unique(x.ctas)&&unique(x.types)?{ok:true}:{ok:false,reason:"cta_not_unique"};
+ }
+ if(o==="content_plan"||o==="repurpose_plan"){
+  if(!Array.isArray(x.days)||x.days.length!==7)return{ok:false,reason:"plan_days"};
+  const supported=(v:any)=>{
+   const f=String(v??"").trim().toLowerCase();
+   return f==="пост"||f==="post"||f==="telegram post"||f==="short"||f==="shorts"||f==="reels"||f.includes("tiktok")||f.includes("youtube shorts");
+  };
+  return x.days.every((d:any)=>d&&t(d.day)&&t(d.title)&&t(d.goal)&&t(d.format)&&supported(d.format)&&t(d.hook)&&t(d.angle)&&t(d.mainThought)&&t(d.cta)&&t(d.status)&&within(d.day,40)&&within(d.title,500)&&within(d.format,120))
+   ?{ok:true}:{ok:false,reason:"plan_day_invalid_or_unsupported_format"};
+ }
+ if(o==="style_profile"){
+  return t(x.vocabulary)&&t(x.structure)&&t(x.rhythm)&&t(x.emotion)&&t(x.humor)&&t(x.emojis)&&t(x.hooks)&&t(x.cta)&&t(x.instruction)?{ok:true}:{ok:false,reason:"style_profile_invalid"};
+ }
+ if(o==="source_analysis"){
+  return t(x.summary)&&nonEmptyArray(x.keyPoints)&&x.keyPoints.length<=30&&t(x.angle)?{ok:true}:{ok:false,reason:"analysis_invalid"};
+ }
+ return{ok:false,reason:"unsupported_operation"};
+}
+export function normalizeOutput(_o:string,x:any){return x}
