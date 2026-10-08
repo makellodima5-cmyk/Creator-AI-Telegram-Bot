@@ -59,7 +59,7 @@ export const historyItem=(id:number)=>({inline_keyboard:[
   [b("↩️ Назад к истории","hpage:0")]
 ]});
 export const styleExamples=(ready:boolean)=>ready
-  ?{inline_keyboard:[[b("✨ Проанализировать стиль","style:analyze"),b("➕ Добавить пример","style:add")],[b("↩️ В меню","menu:back")]]}
+  ?{inline_keyboard:[[b("➕ Добавить пример","style:add"),b("✨ Проанализировать стиль","style:analyze")],[b("↩️ В меню","menu:back")]]}
   :{inline_keyboard:[[b("✨ Начать анализ","style:start")],[b("↩️ В меню","menu:back")]]};
 export const insufficientKeyboard=()=>({inline_keyboard:[
   [b("🔹 Купить кредиты","menu:credits"),b("💎 Изменить тариф","menu:pricing")],
