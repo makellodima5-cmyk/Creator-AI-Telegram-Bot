@@ -24,8 +24,12 @@ export function validateOutput(o:string,x:any):any{
  }
  if(o==="content_plan"||o==="repurpose_plan"){
   if(!Array.isArray(x.days)||x.days.length!==7)return{ok:false,reason:"plan_days"};
-  return x.days.every((d:any)=>d&&t(d.day)&&t(d.title)&&t(d.goal)&&t(d.format)&&t(d.hook)&&t(d.angle)&&t(d.mainThought)&&t(d.cta)&&t(d.status)&&within(d.day,40)&&within(d.title,500)&&within(d.format,120))
-   ?{ok:true}:{ok:false,reason:"plan_day_invalid"};
+  const supported=(v:any)=>{
+   const f=String(v??"").trim().toLowerCase();
+   return f==="пост"||f==="post"||f==="telegram post"||f==="short"||f==="shorts"||f==="reels"||f.includes("tiktok")||f.includes("youtube shorts");
+  };
+  return x.days.every((d:any)=>d&&t(d.day)&&t(d.title)&&t(d.goal)&&t(d.format)&&supported(d.format)&&t(d.hook)&&t(d.angle)&&t(d.mainThought)&&t(d.cta)&&t(d.status)&&within(d.day,40)&&within(d.title,500)&&within(d.format,120))
+   ?{ok:true}:{ok:false,reason:"plan_day_invalid_or_unsupported_format"};
  }
  if(o==="style_profile"){
   return t(x.vocabulary)&&t(x.structure)&&t(x.rhythm)&&t(x.emotion)&&t(x.humor)&&t(x.emojis)&&t(x.hooks)&&t(x.cta)&&t(x.instruction)?{ok:true}:{ok:false,reason:"style_profile_invalid"};
