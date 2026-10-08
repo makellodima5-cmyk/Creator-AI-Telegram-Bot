@@ -7,7 +7,7 @@ import{checkRateLimit}from"../security/rate-limit";
 export async function createJob(env:Bindings,a:any){
  const u0=await env.DB.prepare("SELECT language FROM users WHERE id=?").bind(a.userId).first<any>(),t=copyFor(String(u0?.language)==="en"?"en":"ru");
  const existing=await env.DB.prepare("SELECT id,status FROM jobs WHERE idempotency_key=? AND user_id=?").bind(a.idempotencyKey,a.userId).first<any>();if(existing)return{status:"existing",jobId:Number(existing.id)};
- if(a.cost<0)return{status:"invalid_cost"};if(!(await checkRateLimit(env,a.userId,String(a.type))))return{status:"rate_limited"};
+ if(!Number.isFinite(a.cost)||a.cost<0)return{status:"invalid_cost"};if(!(await checkRateLimit(env,a.userId,String(a.type))))return{status:"rate_limited"};
  const lock=await env.DB.prepare("SELECT generation_lock_job_id FROM users WHERE id=?").bind(a.userId).first<any>();if(lock?.generation_lock_job_id)return{status:"locked"};
  const now=Date.now();
  try{
