@@ -27,21 +27,21 @@ export const menuBack=(lang:Lang="ru")=>b(tr(lang,"↩️ В меню","↩️ I
 export const back=(lang:Lang="ru")=>b(tr(lang,"↩️ Назад","↩️ Back"),"menu:back");
 
 export const postConfig=(d:PostDraft,lang:Lang="ru")=>({inline_keyboard:[
- [["telegram","instagram","tiktok","youtube"].map(v=>b(v===d.platform?"✅ ":""+labels.postPlatform(v,lang),"sel:"+v))].flat(),
- [["expert","conversational","news","sales"].map(v=>b(v===d.style?"✅ ":""+labels.postStyle(v,lang),"sel:"+v))].flat(),
- [["short","medium","long"].map(v=>b(v===d.length?"✅ ":""+labels.postLength(v,lang),"sel:"+v))].flat().concat([b(tr(lang,"🚀 Создать пост","🚀 Create post"),"create"),menuBack(lang)])
+ [["telegram","instagram","tiktok","youtube"].map(v=>b((v===d.platform?"✅ ":"")+labels.postPlatform(v,lang),"sel:"+v))].flat(),
+ [["expert","conversational","news","sales"].map(v=>b((v===d.style?"✅ ":"")+labels.postStyle(v,lang),"sel:"+v))].flat(),
+ [["short","medium","long"].map(v=>b((v===d.length?"✅ ":"")+labels.postLength(v,lang),"sel:"+v))].flat().concat([b(tr(lang,"🚀 Создать пост","🚀 Create post"),"create"),menuBack(lang)])
 ]});
 
 export const scriptConfig=(d:ScriptDraft,lang:Lang="ru")=>({inline_keyboard:[
- [["tiktok","instagram","youtube"].map(v=>b(v===d.platform?"✅ ":""+labels.scriptPlatform(v,lang),"sel:"+v))].flat(),
- [["expert","conversational","dynamic","sales"].map(v=>b(v===d.style?"✅ ":""+labels.scriptStyle(v,lang),"sel:"+v))].flat(),
+ [["tiktok","instagram","youtube"].map(v=>b((v===d.platform?"✅ ":"")+labels.scriptPlatform(v,lang),"sel:"+v))].flat(),
+ [["expert","conversational","dynamic","sales"].map(v=>b((v===d.style?"✅ ":"")+labels.scriptStyle(v,lang),"sel:"+v))].flat(),
  [["15","30","45","60"].map(v=>b((v===d.duration?"✅ ":"")+v+(lang==="en"?" sec":" сек"),"sel:"+v))].flat().concat([b(tr(lang,"🚀 Создать сценарий","🚀 Create script"),"create"),menuBack(lang)])
 ]});
 
 export const planConfig=(d:PlanDraft,lang:Lang="ru")=>({inline_keyboard:[
- [["growth","sales","engagement","expertise"].map(v=>b(v===d.goal?"✅ ":""+labels.planGoal(v,lang),"sel:"+v))].flat(),
- [["telegram","instagram","tiktok","youtube"].map(v=>b(v===d.platform?"✅ ":""+labels.planPlatform(v,lang),"sel:"+v))].flat(),
- [["expert","conversational","news","sales"].map(v=>b(v===d.style?"✅ ":""+labels.planStyle(v,lang),"sel:"+v))].flat().concat([b(tr(lang,"🚀 Создать план","🚀 Create plan"),"create"),menuBack(lang)])
+ [["growth","sales","engagement","expertise"].map(v=>b((v===d.goal?"✅ ":"")+labels.planGoal(v,lang),"sel:"+v))].flat(),
+ [["telegram","instagram","tiktok","youtube"].map(v=>b((v===d.platform?"✅ ":"")+labels.planPlatform(v,lang),"sel:"+v))].flat(),
+ [["expert","conversational","news","sales"].map(v=>b((v===d.style?"✅ ":"")+labels.planStyle(v,lang),"sel:"+v))].flat().concat([b(tr(lang,"🚀 Создать план","🚀 Create plan"),"create"),menuBack(lang)])
 ]});
 
 export const optionKeyboard=(options:{text:string;data:string}[],backData:string,lang:Lang="ru")=>{
