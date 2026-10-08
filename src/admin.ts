@@ -80,7 +80,7 @@ export async function adminAction(env:Bindings,userId:number,chatId:string,data:
  if(data.startsWith("admin:grant_tariff:"))return grantTariffMenu(env,chatId,m,Number(data.slice(18)));
  if(data.startsWith("admin:grant_credits:"))return grantCreditsMenu(env,chatId,m,Number(data.slice(19)));
  if(data.startsWith("admin:grant_tariff_apply:")){const p=data.split(":");return grantTariff(env,userId,chatId,m,Number(p[3]),p[4]);}
- if(data.startsWith("admin:grant_credits_apply:")){const p=data.split(":");return grantCredits(env,userId,chatId,m,Number(p[3]),Number(p[4]));}
+ if(data.startsWith("admin:grant_credits_apply:")){const p=data.split(":");const targetId=Number(p[3]),amount=Number(p[4]);return grantCredits(env,userId,chatId,m,targetId,amount);}
  if(data.startsWith("admin:grant_credits_other:")){const p=data.split(":");await saveAdminInput(env,userId,"grant_credits_other",p[3]);return editMessageText(env,chatId,m,"Введи количество кредитов числом.",adminBack);}
  return;
 }
