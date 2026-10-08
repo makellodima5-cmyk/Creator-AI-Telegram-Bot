@@ -82,24 +82,29 @@ styleEntry:`✦ Creator AI / My Style
 После 5 примеров можно будет запустить анализ.
 
 Твой стиль. Твои мысли. Creator AI помогает оформить их в контент.`,
-styleCollecting:(count:number)=>`🧠 Готово.
+styleInitial:`🧠 Готово.
 
 Теперь отправляй свои тексты один за другим.
 
 Для первого анализа нужно минимум 5 примеров.
-Можно отправить до 20.
+Можно отправить до 20.`,
+styleCollecting:(count:number)=>`🧠 Продолжай отправлять свои тексты.
 
 Получено: ${count} / 20`,
-styleReady:(count:number)=>`✦ Creator AI / My Style
+styleReady:(count:number,price:number)=>`✦ Creator AI / My Style
 
 Отлично. Уже достаточно примеров для первого анализа.
 
 🔹 Получено: ${count} / 20
 
-Можешь отправить ещё примеры, чтобы Creator AI точнее понял твою манеру, или запустить анализ уже сейчас.`,
-styleDone:`🧠 Получено 20/20 примеров.
+Можешь отправить ещё примеры, чтобы Creator AI точнее понял твою манеру, или запустить анализ уже сейчас.
 
-Этого достаточно для анализа твоего стиля.`,
+💳 Стоимость генерации: ${price} 🔹`,
+styleDone:(price:number)=>`🧠 Получено 20/20 примеров.
+
+Этого достаточно для анализа твоего стиля.
+
+💳 Стоимость генерации: ${price} 🔹`,
 history:`✦ CREATOR AI / HISTORY
 
 Твоя личная библиотека важных материалов.
@@ -116,6 +121,14 @@ repSelect:(price:number)=>`♻️ Creator AI / Repurpose
 Теперь выбери, какой контент создать из него.
 
 💳 Стоимость: ${price} 🔹`,
+repurposeDone:`✦ CREATOR AI / REPURPOSE
+
+🚀 Контент готов
+
+Отправляю результаты…`,
+repPartial:`⚠️ Часть результатов не удалось создать.
+Успешные результаты уже доступны.
+Стоимость неудачных результатов возвращена.`,
 settings:`⚙️ Creator AI / Настройки
 
 Здесь можно изменить основные параметры Creator AI.`,
@@ -132,6 +145,14 @@ ID: ${id}
 language:`🌐 CREATOR AI / ЯЗЫК
 
 Выбери язык интерфейса и общения с Creator AI.`,
+languageAppliedRu:`🌐 CREATOR AI / ЯЗЫК
+
+Русский теперь активен.`,
+languageAppliedEn:`🌐 Creator AI / Language
+
+Choose the language for the Creator AI interface and AI conversations.
+
+English is now active.`,
 notifications:(enabled:boolean)=>`🔔 CREATOR AI / УВЕДОМЛЕНИЯ
 
 Будь в курсе новых возможностей Creator AI.
@@ -151,11 +172,13 @@ terms:`⚖️ Условия использования
 privacy:`🛡️ Конфиденциальность
 
 Здесь размещена актуальная Политика конфиденциальности Creator AI.`,
-locked:`⏳ Генерация ещё выполняется…
+locked:`⏳ Генерация ещё выполняется
 
 Creator AI сейчас создаёт твой контент.
 
-Дождись завершения текущей операции и попробуй снова.`,
+Дождись завершения текущей операции и попробуй снова.
+
+Отменить уже выполняющийся AI Job нельзя.`,
 aiError:`😔 Ой, что-то пошло не так
 
 Не удалось создать контент.
@@ -171,14 +194,14 @@ deliveryError:`⚠️ Не удалось отправить результат
 unsupported:`⚠️ Этот формат пока не поддерживается
 
 Отправь текст, PDF, DOC или TXT.`,
+sourceInvalid:`⚠️ Материал не прошёл проверку
+
+Проверь формат и размер файла или отправь другой материал.`,
 sourceTooLarge:`⚠️ Материал слишком большой
 
 Я не могу обработать такой объём целиком.
 
 Попробуй отправить более короткую версию материала.`,
-sourceInvalid:`⚠️ Материал не прошёл проверку
-
-Проверь формат и размер файла или отправь другой материал.`,
 saved:`⭐ Сохранено в историю.`,
 alreadySaved:`⭐ Этот результат уже сохранён в историю.`,
 deleted:`🗑 Удалено из истории.`,
@@ -229,35 +252,62 @@ credits:(balance:number,p:number[])=>`💎 CREATOR AI / КРЕДИТЫ
 ⚡ Кредиты можно использовать для любых доступных генераций.
 
 Купи только то, что тебе действительно нужно.`,
-postConfig:(price:number,d:any)=>`✦ Creator AI / Post Maker
+postConfig:(price:number,_d:any)=>`✦ Creator AI / Post Maker
 
 Твоя идея готова.
 Теперь настроим, как она будет выглядеть.
 
 💳 Стоимость генерации: ${price} 🔹
 
-📱 Площадка: ${d.platform}
-🎨 Стиль: ${d.style}
-📏 Размер: ${d.length}`,
-scriptConfig:(price:number,d:any)=>`🎬 Creator AI / Script Maker
+📱 Площадка
+🎨 Стиль
+📏 Размер`,
+postEditConfig:(price:number)=>`✦ CREATOR AI / POST MAKER
+
+Измени параметры поста.
+
+💳 Стоимость генерации: ${price} 🔹
+
+📱 Площадка
+🎨 Стиль
+📏 Размер`,
+scriptConfig:(price:number,_d:any)=>`🎬 Creator AI / Script Maker
 
 Выбери, каким будет твой ролик.
 
 💳 Стоимость генерации: ${price} 🔹
 
-📱 Формат: ${d.platform}
-🎨 Стиль: ${d.style}
-⏱️ Длительность: ${d.duration} сек`,
-planConfig:(price:number,d:any)=>`📅 Creator AI / Content Plan
+📱 Формат
+🎨 Стиль
+⏱️ Длительность`,
+scriptEditConfig:(price:number)=>`🎬 CREATOR AI / SCRIPT MAKER
+
+Измени параметры сценария.
+
+💳 Стоимость генерации: ${price} 🔹
+
+📱 Формат
+🎨 Стиль
+⏱️ Длительность`,
+planConfig:(price:number,_d:any)=>`📅 Creator AI / Content Plan
 
 Настрой параметры контент-плана.
 
 💳 Стоимость генерации: ${price} 🔹
 
-🎯 Цель: ${d.goal}
-📱 Площадка: ${d.platform}
-🎨 Стиль: ${d.style}`,
-processingSteps:(type:string)=>type==="post"?["🧠 Анализирую материал…","🔎 Выделяю главное…","✍️ Адаптирую контент…","✨ Финальные штрихи…"]:type==="script"?["🧠 Анализирую идею…","🔥 Собираю сильный Hook…","✍️ Пишу сценарий…","✨ Финальные штрихи…"]:type==="content_plan"?["🧠 Анализирую тему…","🎯 Определяю цели контента…","💡 Придумываю идеи на неделю…","✨ Формирую контент-план…"]:["🧠 Анализирую материал…","🔎 Выделяю главное…","✍️ Адаптирую контент…","✨ Финальные штрихи…"]
+🎯 Цель
+📱 Площадка
+🎨 Стиль`,
+planEditConfig:(price:number)=>`📅 CREATOR AI / CONTENT PLAN
+
+Измени параметры контент-плана.
+
+💳 Стоимость генерации: ${price} 🔹
+
+🎯 Цель
+📱 Площадка
+🎨 Стиль`,
+processingSteps:(type:string)=>type==="post"?["🧠 Анализирую твою идею…","🔥 Собираю сильный Hook…","✍️ Пишу пост…","✨ Финальные штрихи…"]:type==="script"?["🧠 Анализирую твою идею…","🔥 Собираю сильный Hook…","✍️ Пишу сценарий…","✨ Финальные штрихи…"]:type==="content_plan"?["🧠 Анализирую твою тему…","🎯 Определяю цели контента…","💡 Придумываю идеи на неделю…","✨ Формирую контент-план…","🚀 Почти готово…"]:["🧠 Анализирую материал…","🔎 Выделяю главное…","✍️ Адаптирую контент…","✨ Финальные штрихи…"]
 };
 
 const enBase={
@@ -330,24 +380,29 @@ Send them one by one or several in a row.
 🔹 Received: 0 / 20
 
 You can start analysis after 5 examples.`,
-styleCollecting:(count:number)=>`🧠 Done.
+styleInitial:`🧠 Done.
 
 Now send your texts one by one.
 
 First analysis needs at least 5 examples.
-You can send up to 20.
+You can send up to 20.`,
+styleCollecting:(count:number)=>`🧠 Keep sending your texts.
 
 Received: ${count} / 20`,
-styleReady:(count:number)=>`✦ Creator AI / My Style
+styleReady:(count:number,price:number)=>`✦ Creator AI / My Style
 
 Great. There are enough examples for the first analysis.
 
 🔹 Received: ${count} / 20
 
-You can add more examples or start the analysis now.`,
-styleDone:`🧠 Received 20/20 examples.
+You can add more examples or start the analysis now.
 
-That is enough to analyze your style.`,
+💳 Generation cost: ${price} 🔹`,
+styleDone:(price:number)=>`🧠 Received 20/20 examples.
+
+That is enough to analyze your style.
+
+💳 Generation cost: ${price} 🔹`,
 history:`✦ CREATOR AI / HISTORY
 
 Your personal library of important materials.
@@ -364,6 +419,14 @@ The material was analyzed.
 Now choose what to create from it.
 
 💳 Cost: ${price} 🔹`,
+repurposeDone:`✦ CREATOR AI / REPURPOSE
+
+🚀 Content ready
+
+Sending the results…`,
+repPartial:`⚠️ Some results could not be created.
+Successful results are already available.
+Failed output costs were refunded.`,
 settings:`⚙️ Creator AI / Settings
 
 Change the main Creator AI settings here.`,
@@ -379,7 +442,15 @@ ID: ${id}
 📅 Subscription until: ${date}`,
 language:`🌐 CREATOR AI / LANGUAGE
 
-Choose the language for the Creator AI interface and conversations.`,
+Choose the language for the Creator AI interface and AI conversations.`,
+languageAppliedRu:`🌐 CREATOR AI / ЯЗЫК
+
+Русский теперь активен.`,
+languageAppliedEn:`🌐 Creator AI / Language
+
+Choose the language for the Creator AI interface and AI conversations.
+
+English is now active.`,
 notifications:(enabled:boolean)=>`🔔 CREATOR AI / NOTIFICATIONS
 
 Stay up to date with new Creator AI features.
@@ -399,11 +470,12 @@ Current Creator AI Terms of Use.`,
 privacy:`🛡️ Privacy
 
 Current Creator AI Privacy Policy.`,
-locked:`⏳ Generation is still running…
+locked:`⏳ Generation is still running
 
 Creator AI is creating your content.
 
-Wait for the current operation to finish and try again.`,
+Wait for the current operation to finish and try again.`, 
+generationCancelInfo:`An active AI Job cannot be cancelled.`,
 aiError:`😔 Something went wrong
 
 We could not create the content.
@@ -419,14 +491,14 @@ We saved the result and will retry delivery.`,
 unsupported:`⚠️ This format is not supported yet
 
 Send text, PDF, DOC or TXT.`,
-sourceTooLarge:`⚠️ This material is too large
-
-I cannot process this amount of content in full.
-
-Try sending a shorter version of the material.`,
 sourceInvalid:`⚠️ The material could not be processed
 
 Check the format and size or send another material.`,
+sourceTooLarge:`⚠️ Material is too large
+
+I cannot process this volume in full.
+
+Try sending a shorter version of the material.`,
 saved:`⭐ Saved to history.`,
 alreadySaved:`⭐ This result is already saved to history.`,
 deleted:`🗑 Removed from history.`,
@@ -476,35 +548,62 @@ Just add credits and keep creating.
 ⚡ Credits can be used for all available generations.
 
 Buy only what you need.`,
-postConfig:(price:number,d:any)=>`✦ Creator AI / Post Maker
+postConfig:(price:number,_d:any)=>`✦ Creator AI / Post Maker
 
 Your idea is ready.
 Now tune how it should look.
 
 💳 Generation cost: ${price} 🔹
 
-📱 Platform: ${d.platform}
-🎨 Style: ${d.style}
-📏 Size: ${d.length}`,
-scriptConfig:(price:number,d:any)=>`🎬 Creator AI / Script Maker
+📱 Platform
+🎨 Style
+📏 Size`,
+postEditConfig:(price:number)=>`✦ CREATOR AI / POST MAKER
+
+Change the post parameters.
+
+💳 Generation cost: ${price} 🔹
+
+📱 Platform
+🎨 Style
+📏 Size`,
+scriptConfig:(price:number,_d:any)=>`🎬 Creator AI / Script Maker
 
 Choose what your video will be like.
 
 💳 Generation cost: ${price} 🔹
 
-📱 Format: ${d.platform}
-🎨 Style: ${d.style}
-⏱️ Duration: ${d.duration} sec`,
-planConfig:(price:number,d:any)=>`📅 Creator AI / Content Plan
+📱 Format
+🎨 Style
+⏱️ Duration`,
+scriptEditConfig:(price:number)=>`🎬 CREATOR AI / SCRIPT MAKER
+
+Change the script parameters.
+
+💳 Generation cost: ${price} 🔹
+
+📱 Format
+🎨 Style
+⏱️ Duration`,
+planConfig:(price:number,_d:any)=>`📅 Creator AI / Content Plan
 
 Tune your content plan parameters.
 
 💳 Generation cost: ${price} 🔹
 
-🎯 Goal: ${d.goal}
-📱 Platform: ${d.platform}
-🎨 Style: ${d.style}`,
-processingSteps:(type:string)=>type==="post"?["🧠 Analyzing the material…","🔎 Finding the key points…","✍️ Adapting the content…","✨ Final touches…"]:type==="script"?["🧠 Analyzing the idea…","🔥 Building the Hook…","✍️ Writing the script…","✨ Final touches…"]:["🧠 Analyzing the topic…","🎯 Defining content goals…","💡 Creating ideas for the week…","✨ Forming the content plan…"]
+🎯 Goal
+📱 Platform
+🎨 Style`,
+planEditConfig:(price:number)=>`📅 CREATOR AI / CONTENT PLAN
+
+Change the content plan parameters.
+
+💳 Generation cost: ${price} 🔹
+
+🎯 Goal
+📱 Platform
+🎨 Style`,
+processingSteps:(type:string)=>type==="post"?["🧠 Analyzing your idea…","🔥 Building a strong Hook…","✍️ Writing the post…","✨ Final touches…"]:type==="script"?["🧠 Analyzing your idea…","🔥 Building a strong Hook…","✍️ Writing the script…","✨ Final touches…"]:type==="content_plan"?["🧠 Analyzing your topic…","🎯 Defining content goals…","💡 Creating ideas for the week…","✨ Forming the content plan…","🚀 Almost ready…"]:["🧠 Analyzing the material…","🔎 Finding the key points…","✍️ Adapting the content…","✨ Final touches…"]
 };
 
 export const copyFor=(lang:Lang)=>lang==="en"?enBase:ruBase;
