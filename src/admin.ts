@@ -41,7 +41,7 @@ export async function setIncludedCredits(env:Bindings,key:string,credits:number,
  return true;
 }
 async function audit(env:Bindings,adminId:number,action:string,entityType:string,entityId:number|null,oldValue:any,newValue:any,targetUserId:number|null=null){
- await env.DB.prepare("INSERT INTO admin_audit_log(admin_user_id,action,target_user_id,entity_type,entity_id,old_value_json,new_value_json,created_at) VALUES(?,?,?,?,?,?,?,?)").bind(adminId,targetUserId,entityType,entityType,entityId,JSON.stringify(oldValue??null),JSON.stringify(newValue??null),now()).run();
+ await env.DB.prepare("INSERT INTO admin_audit_log(admin_user_id,action,target_user_id,entity_type,entity_id,old_value_json,new_value_json,created_at) VALUES(?,?,?,?,?,?,?,?)").bind(adminId,action,targetUserId,entityType,entityId,JSON.stringify(oldValue??null),JSON.stringify(newValue??null),now()).run();
 }
 export async function ensureAdminSeed(env:Bindings){
  const n=now();
