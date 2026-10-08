@@ -57,47 +57,57 @@ export async function openAdmin(env:Bindings,chatId:string){
 const priceKeys=["post","script","content_plan","post_edit","post_variant","script_edit","script_variant","content_plan_variant","style_profile"];
 const repKeys=["repurpose_telegram","repurpose_instagram","repurpose_tiktok","repurpose_youtube","repurpose_hooks","repurpose_cta","repurpose_plan"];
 export async function adminAction(env:Bindings,userId:number,chatId:string,data:string,msg:any){
- const u=await env.DB.prepare("SELECT * FROM users WHERE id=?").bind(userId).first<A>();if(!u||!(await isAdmin(env,String(u.telegram_id||""))))return;
+ const u=await env.DB.prepare("SELECT * FROM users WHERE id=?").bind(userId).first<A>();
+ if(!u||!(await isAdmin(env,String(u.telegram_id||""))))return;
  const m=Number(msg?.message_id||0);
- if(data==="admin:menu")return m?editMessageText(env,chatId,m,"👨‍💻 Admin Panel",adminMenu):openAdmin(env,chatId);
+ const lang=String(u.language)==="en"?"en":"ru";
+ const back=lang==="en"?"↩️ Back":"↩️ Назад";
+ if(data==="admin:menu")return m?editMessageText(env,chatId,m,lang==="en"?"👨‍💻 Admin Panel":"👨‍💻 Админ-панель",adminMenu):openAdmin(env,chatId);
  if(data==="admin:stats"||data.startsWith("admin:stats:")){
   const period=data.endsWith(":7d")?"7d":data.endsWith(":30d")?"30d":"today",since=now()-(period==="7d"?7*86400000:period==="30d"?30*86400000:86400000);
   const q=async(sql:string)=>Number((await env.DB.prepare(sql).bind(since).first<A>())?.c??0);
   const users=Number((await env.DB.prepare("SELECT COUNT(*) c FROM users").first<A>())?.c??0);
   const newUsers=await q("SELECT COUNT(*) c FROM users WHERE created_at>=?");
   const active=await q("SELECT COUNT(*) c FROM users WHERE last_seen_at>=?");
-  const generations=await q("SELECT COUNT(*) c FROM jobs WHERE created_at>=? AND type NOT IN ('source_analysis')");
+  const generations=await q("SELECT COUNT(*) c FROM jobs WHERE created_at>=? AND type NOT IN ('source_analysis')",);
   const success=await q("SELECT COUNT(*) c FROM jobs WHERE created_at>=? AND status='completed'");
   const errors=await q("SELECT COUNT(*) c FROM jobs WHERE created_at>=? AND status IN ('failed','partial')");
   const credits=await q("SELECT COALESCE(SUM(CASE WHEN type='reserve' THEN -delta ELSE 0 END),0) c FROM credit_transactions WHERE created_at>=?");
   const aiCost=(await q("SELECT COALESCE(SUM(cost_usd_micros),0) c FROM job_attempts WHERE created_at>=? AND status='success'"))/1000000;
   const revenue=await q("SELECT COALESCE(SUM(stars_amount),0) c FROM payments WHERE created_at>=? AND status='paid'");
   const margin=revenue>0?((revenue-aiCost)/revenue)*100:0;
-  const label=period==="today"?"сегодня":period==="7d"?"7 дней":"30 дней";
-  return editMessageText(env,chatId,m,"📊 Статистика\n\nПериод: "+label+"\n\n👥 Пользователи: "+users+"\n🆕 Новые пользователи: "+newUsers+"\n\n🟢 Активные: "+active+"\n\n🤖 Генераций: "+generations+"\n✅ Успешных: "+success+"\n❌ Ошибок: "+errors+"\n\n🔹 Потрачено кредитов: "+credits+"\n💵 AI Cost: $"+aiCost.toFixed(2)+"\n⭐ Revenue: "+revenue+" ⭐\n📈 Gross Margin: "+margin.toFixed(1)+"%",{inline_keyboard:[[{text:"Сегодня",callback_data:"admin:stats:today"},{text:"7 дней",callback_data:"admin:stats:7d"},{text:"30 дней",callback_data:"admin:stats:30d"}],[{text:"↩️ Назад",callback_data:"admin:menu"}]]});
-} if(data==="admin:prices")return m?editMessageText(env,chatId,m,"⚙️ Цены\n\nВыбери, что изменить:",adminPricesMenu):sendMessage(env,chatId,"⚙️ Цены\n\nВыбери, что изменить:",adminPricesMenu);
- if(data==="admin:tariffs"){const rows:any[]=[...await planButtons(env,"creator"),...await planButtons(env,"pro")];return editMessageText(env,chatId,m,"💎 Цены тарифов",{inline_keyboard:[[...rows],[{text:"↩️ Назад",callback_data:"admin:prices"}]]});}
- if(data==="admin:credit_packages"){const vals=await Promise.all([50,100,250,500].map(async n=>{const p=await env.DB.prepare("SELECT stars_price FROM pricing WHERE key=?").bind("credits_"+n).first<A>();return{text:n+" 🔹",callback_data:"admin:credit:"+n}}));return editMessageText(env,chatId,m,"🔹 Пакеты кредитов\n\n"+(await Promise.all([50,100,250,500].map(async n=>{const p=await env.DB.prepare("SELECT stars_price FROM pricing WHERE key=?").bind("credits_"+n).first<A>();return n+" 🔹 — "+Number(p?.stars_price??0)+" ⭐"}))).join("\n"),{inline_keyboard:[[vals[0],vals[1]],[vals[2],vals[3]],[{text:"↩️ Назад",callback_data:"admin:prices"}]]});}
- if(data==="admin:ai_prices"){const items=await Promise.all(priceKeys.map(async k=>{const p=await env.DB.prepare("SELECT credits_cost FROM pricing WHERE key=?").bind(k).first<A>();return{text:k+" — "+Number(p?.credits_cost??0)+" 🔹",data:"admin:ai:"+k}}));return editMessageText(env,chatId,m,"🤖 Стоимость генераций",{inline_keyboard:adminList(items,"admin:prices").inline_keyboard});}
- if(data==="admin:repurpose_prices"){const items=await Promise.all(repKeys.map(async k=>{const p=await env.DB.prepare("SELECT credits_cost FROM pricing WHERE key=?").bind(k).first<A>();return{text:k.replace("repurpose_","")+" — "+Number(p?.credits_cost??0)+" 🔹",data:"admin:rep:"+k.replace("repurpose_","")}}));return editMessageText(env,chatId,m,"♻️ Repurpose",{inline_keyboard:adminList(items,"admin:prices").inline_keyboard});}
- if(data.startsWith("admin:ai:")){const key=data.slice(9);if(!priceKeys.includes(key))return;const p=await env.DB.prepare("SELECT credits_cost FROM pricing WHERE key=?").bind(key).first<A>();return editMessageText(env,chatId,m,key+"\n\nТекущая стоимость:\n"+Number(p?.credits_cost??0)+" 🔹",{inline_keyboard:[[{text:"💳 Изменить стоимость",callback_data:"admin:ai_edit:"+key}],[{text:"↩️ Назад",callback_data:"admin:ai_prices"}]]});}
- if(data.startsWith("admin:rep:")){const key=data.slice(10);if(!repKeys.includes("repurpose_"+key))return;const p=await env.DB.prepare("SELECT credits_cost FROM pricing WHERE key=?").bind("repurpose_"+key).first<A>();return editMessageText(env,chatId,m,key+"\n\nТекущая стоимость:\n"+Number(p?.credits_cost??0)+" 🔹",{inline_keyboard:[[{text:"💳 Изменить стоимость",callback_data:"admin:rep_edit:"+key}],[{text:"↩️ Назад",callback_data:"admin:repurpose_prices"}]]});}
- if(data.startsWith("admin:tariff:"))return tariffCard(env,chatId,m,data.slice(13));
- if(data.startsWith("admin:credit:"))return creditCard(env,chatId,m,Number(data.slice(13)));
- if(data.startsWith("admin:ai_edit:")){const key=data.slice(13);await saveAdminInput(env,userId,"ai_edit",key);return editMessageText(env,chatId,m,"Введи новую стоимость в кредитах числом.",adminBack);}
- if(data.startsWith("admin:rep_edit:")){const key=data.slice(14);await saveAdminInput(env,userId,"rep_edit",key);return editMessageText(env,chatId,m,"Введи новую стоимость в кредитах числом.",adminBack);}
- if(data.startsWith("admin:tariff_edit_price:")){const key=data.slice(24);await saveAdminInput(env,userId,"tariff_price",key);return editMessageText(env,chatId,m,"Введи новую цену в Stars числом.",adminBack);}
- if(data.startsWith("admin:tariff_edit_credits:")){const key=data.slice(26);await saveAdminInput(env,userId,"tariff_credits",key);return editMessageText(env,chatId,m,"Введи новый кредитный лимит числом.",adminBack);}
- if(data.startsWith("admin:credit_edit:")){const n=Number(data.slice(18));await saveAdminInput(env,userId,"credit_price",String(n));return editMessageText(env,chatId,m,"Введи новую цену в Stars числом.",adminBack);}
- if(data==="admin:users")return editMessageText(env,chatId,m,"👤 Пользователи\n\nВыбери поиск пользователя.",{inline_keyboard:[[ {text:"🔎 Найти пользователя",callback_data:"admin:user_search"}],[{text:"↩️ Назад",callback_data:"admin:menu"}]]});
- if(data==="admin:user_search"){await saveAdminInput(env,userId,"user_search","");return editMessageText(env,chatId,m,"🔎 Введи Telegram ID пользователя.",adminBack);}
+  const label=period==="today"?(lang==="en"?"Today":"Сегодня"):period==="7d"?(lang==="en"?"7 days":"7 дней"):(lang==="en"?"30 days":"30 дней");
+  const body=lang==="en"
+   ?`📊 Statistics\n\nPeriod: ${label}\n\n👥 Users: ${users}\n🆕 New users: ${newUsers}\n\n🟢 Active: ${active}\n\n🤖 Generations: ${generations}\n✅ Successful: ${success}\n❌ Errors: ${errors}\n\n🔹 Credits spent: ${credits}\n💵 AI Cost: $${aiCost.toFixed(2)}\n⭐ Revenue: ${revenue} ⭐\n📈 Gross Margin: ${margin.toFixed(1)}%`
+   :`📊 Статистика\n\nПериод: ${label}\n\n👥 Пользователи: ${users}\n🆕 Новые пользователи: ${newUsers}\n\n🟢 Активные: ${active}\n\n🤖 Генераций: ${generations}\n✅ Успешных: ${success}\n❌ Ошибок: ${errors}\n\n🔹 Потрачено кредитов: ${credits}\n💵 AI Cost: $${aiCost.toFixed(2)}\n⭐ Revenue: ${revenue} ⭐\n📈 Gross Margin: ${margin.toFixed(1)}%`;
+  return editMessageText(env,chatId,m,body,{inline_keyboard:[[
+   {text:lang==="en"?"Today":"Сегодня",callback_data:"admin:stats:today"},
+   {text:lang==="en"?"7 days":"7 дней",callback_data:"admin:stats:7d"},
+   {text:lang==="en"?"30 days":"30 дней",callback_data:"admin:stats:30d"}],[{text:back,callback_data:"admin:menu"}]]});
+ }
+ if(data==="admin:prices")return m?editMessageText(env,chatId,m,lang==="en"?"⚙️ Prices\n\nChoose what to change:":"⚙️ Цены\n\nВыбери, что изменить:",adminPricesMenu):sendMessage(env,chatId,lang==="en"?"⚙️ Prices\n\nChoose what to change:":"⚙️ Цены\n\nВыбери, что изменить:",adminPricesMenu);
+ if(data==="admin:tariffs"){const rows:any[]=[...await planButtons(env,"creator"),...await planButtons(env,"pro")];return editMessageText(env,chatId,m,lang==="en"?"💎 Tariff prices":"💎 Цены тарифов",{inline_keyboard:[[...rows],[{text:back,callback_data:"admin:prices"}]]});}
+ if(data==="admin:credit_packages"){const vals=await Promise.all([50,100,250,500].map(async n=>({text:n+" 🔹",callback_data:"admin:credit:"+n})));return editMessageText(env,chatId,m,(lang==="en"?"🔹 Credit packs\n\n":"🔹 Пакеты кредитов\n\n")+(await Promise.all([50,100,250,500].map(async n=>n+" 🔹 — "+Number((await env.DB.prepare("SELECT stars_price FROM pricing WHERE key=?").bind("credits_"+n).first<A>())?.stars_price??0)+" ⭐"))).join("\n"),{inline_keyboard:[[vals[0],vals[1]],[vals[2],vals[3]],[{text:back,callback_data:"admin:prices"}]]});}
+ if(data==="admin:ai_prices"){const items=await Promise.all(priceKeys.map(async k=>({text:k+" — "+Number((await env.DB.prepare("SELECT credits_cost FROM pricing WHERE key=?").bind(k).first<A>())?.credits_cost??0)+" 🔹",data:"admin:ai:"+k})));return editMessageText(env,chatId,m,lang==="en"?"🤖 Generation prices":"🤖 Стоимость генераций",adminList(items,"admin:prices"));}
+ if(data==="admin:repurpose_prices"){const items=await Promise.all(repKeys.map(async k=>({text:k.replace("repurpose_","")+" — "+Number((await env.DB.prepare("SELECT credits_cost FROM pricing WHERE key=?").bind(k).first<A>())?.credits_cost??0)+" 🔹",data:"admin:rep:"+k.replace("repurpose_","")})));return editMessageText(env,chatId,m,"♻️ Repurpose",adminList(items,"admin:prices"));}
+ if(data.startsWith("admin:ai:")){const key=data.slice(9);if(!priceKeys.includes(key))return;const p=await env.DB.prepare("SELECT credits_cost FROM pricing WHERE key=?").bind(key).first<A>();return editMessageText(env,chatId,m,key+"\n\n"+(lang==="en"?"Current cost:":"Текущая стоимость:")+"\n"+Number(p?.credits_cost??0)+" 🔹",{inline_keyboard:[[{text:lang==="en"?"💳 Change cost":"💳 Изменить стоимость",callback_data:"admin:ai_edit:"+key}],[{text:back,callback_data:"admin:ai_prices"}]]});}
+ if(data.startsWith("admin:rep:")){const key=data.slice(10);if(!repKeys.includes("repurpose_"+key))return;const p=await env.DB.prepare("SELECT credits_cost FROM pricing WHERE key=?").bind("repurpose_"+key).first<A>();return editMessageText(env,chatId,m,key+"\n\n"+(lang==="en"?"Current cost:":"Текущая стоимость:")+"\n"+Number(p?.credits_cost??0)+" 🔹",{inline_keyboard:[[{text:lang==="en"?"💳 Change cost":"💳 Изменить стоимость",callback_data:"admin:rep_edit:"+key}],[{text:back,callback_data:"admin:repurpose_prices"}]]});}
+ if(data.startsWith("admin:ai_edit:")||data.startsWith("admin:rep_edit:")||data.startsWith("admin:tariff_edit_price:")||data.startsWith("admin:tariff_edit_credits:")||data.startsWith("admin:credit_edit:")){
+  const mode=data.startsWith("admin:ai_edit:")?"ai_edit":data.startsWith("admin:rep_edit:")?"rep_edit":data.startsWith("admin:tariff_edit_price:")?"tariff_price":data.startsWith("admin:tariff_edit_credits:")?"tariff_credits":"credit_price";
+  const key=data.slice(mode==="ai_edit"?13:mode==="rep_edit"?14:mode==="tariff_price"?24:mode==="tariff_credits"?26:18);
+  await saveAdminInput(env,userId,mode,key);
+  return editMessageText(env,chatId,m,lang==="en"?"Enter the new value as a number.":"Введи новое значение числом.",adminBack);
+ }
+ if(data==="admin:tariffs")return editMessageText(env,chatId,m,lang==="en"?"💎 Tariffs":"💎 Цены тарифов",adminPricesMenu);
+ if(data==="admin:users")return editMessageText(env,chatId,m,lang==="en"?"👤 Users\n\nChoose user search.":"👤 Пользователи\n\nВыбери поиск пользователя.",{inline_keyboard:[[{text:lang==="en"?"🔎 Find user":"🔎 Найти пользователя",callback_data:"admin:user_search"}],[{text:back,callback_data:"admin:menu"}]]});
+ if(data==="admin:user_search"){await saveAdminInput(env,userId,"user_search","");return editMessageText(env,chatId,m,lang==="en"?"🔎 Enter Telegram ID:":"🔎 Введи Telegram ID пользователя.",adminBack);}
  if(data.startsWith("admin:user:"))return userCard(env,chatId,m,Number(data.slice(10)));
  if(data.startsWith("admin:grant_tariff:"))return grantTariffMenu(env,chatId,m,Number(data.slice(18)));
  if(data.startsWith("admin:grant_credits:"))return grantCreditsMenu(env,chatId,m,Number(data.slice(19)));
  if(data.startsWith("admin:grant_tariff_apply:")){const p=data.split(":");return grantTariff(env,userId,chatId,m,Number(p[3]),p[4]);}
- if(data.startsWith("admin:grant_credits_apply:")){const p=data.split(":");const targetId=Number(p[3]),amount=Number(p[4]);return grantCredits(env,userId,chatId,m,targetId,amount);}
- if(data.startsWith("admin:grant_credits_other:")){const p=data.split(":");await saveAdminInput(env,userId,"grant_credits_other",p[3]);return editMessageText(env,chatId,m,"Введи количество кредитов числом.",adminBack);}
- return;
+ if(data.startsWith("admin:grant_credits_apply:")){const p=data.split(":");return grantCredits(env,userId,chatId,m,Number(p[3]),Number(p[4]));}
+ if(data.startsWith("admin:grant_credits_other:")){const p=data.split(":");await saveAdminInput(env,userId,"grant_credits_other",p[3]);return editMessageText(env,chatId,m,lang==="en"?"Enter credit amount:":"Введи количество кредитов числом.",adminBack);}
+ if(data==="admin:menu")return;
 }
 async function planButtons(env:Bindings,key:string){const p=await env.DB.prepare("SELECT stars_price FROM pricing WHERE key=?").bind(key).first<A>();return[{text:key==="creator"?"⚡ CREATOR":"🚀 PRO",callback_data:"admin:tariff:"+key},{text:Number(p?.stars_price??0)+" ⭐",callback_data:"admin:tariff:"+key}];}
 async function tariffCard(env:Bindings,chatId:string,m:number,key:string){const p=await env.DB.prepare("SELECT * FROM pricing WHERE key=?").bind(key).first<A>();return editMessageText(env,chatId,m,(key==="creator"?"⚡ CREATOR":"🚀 PRO")+"\n\nТекущая цена:\n"+Number(p?.stars_price??0)+" ⭐ / месяц\n\nКредитов:\n"+Number(p?.included_credits??0)+" 🔹",{inline_keyboard:[[ {text:"💳 Изменить цену",callback_data:"admin:tariff_edit_price:"+key},{text:"🔹 Изменить кредиты",callback_data:"admin:tariff_edit_credits:"+key}],[{text:"↩️ Назад",callback_data:"admin:tariffs"}]]});}
