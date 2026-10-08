@@ -14,35 +14,34 @@ export const mainMenu={inline_keyboard:[
 ]};
 
 const labels={
- postPlatform:(v:string,lang:Lang)=>({telegram:tr(lang,"Telegram","Telegram"),instagram:tr(lang,"Instagram","Instagram"),tiktok:tr(lang,"TikTok","TikTok"),youtube:tr(lang,"YouTube","YouTube")}[v]??tr(lang,"Площадка","Platform")),
- postStyle:(v:string,lang:Lang)=>({expert:tr(lang,"Экспертный","Expert"),conversational:tr(lang,"Разговорный","Conversational"),news:tr(lang,"Новостной","News"),sales:tr(lang,"Продающий","Sales")}[v]??tr(lang,"Стиль","Style")),
- postLength:(v:string,lang:Lang)=>({short:tr(lang,"Короткий","Short"),medium:tr(lang,"Средний","Medium"),long:tr(lang,"Длинный","Long")}[v]??tr(lang,"Размер","Length")),
- scriptPlatform:(v:string,lang:Lang)=>({tiktok:tr(lang,"TikTok","TikTok"),instagram:tr(lang,"Reels","Reels"),youtube:tr(lang,"YouTube Shorts","YouTube Shorts")}[v]??tr(lang,"Формат","Format")),
- scriptStyle:(v:string,lang:Lang)=>({expert:tr(lang,"Экспертная","Expert"),conversational:tr(lang,"Разговорная","Conversational"),dynamic:tr(lang,"Динамичная","Dynamic"),sales:tr(lang,"Продающая","Sales")}[v]??tr(lang,"Стиль","Style")),
- planGoal:(v:string,lang:Lang)=>({growth:tr(lang,"🎯 Рост","🎯 Growth"),sales:tr(lang,"🎯 Продажи","🎯 Sales"),engagement:tr(lang,"🎯 Вовлечение","🎯 Engagement"),expertise:tr(lang,"🎯 Экспертность","🎯 Expertise")}[v]??tr(lang,"🎯 Цель","🎯 Goal")),
+ postPlatform:(v:string,lang:Lang)=>({telegram:"Telegram",instagram:"Instagram",tiktok:"TikTok",youtube:"YouTube"}[v]??tr(lang,"Площадка","Platform")),
+ postStyle:(v:string,lang:Lang)=>({expert:"Экспертный",conversational:"Разговорный",news:"Новостной",sales:"Продающий"}[v]??tr(lang,"Стиль","Style")),
+ postLength:(v:string,lang:Lang)=>({short:"Короткий",medium:"Средний",long:"Длинный"}[v]??tr(lang,"Размер","Length")),
+ scriptPlatform:(v:string,lang:Lang)=>({tiktok:"TikTok",instagram:"Reels",youtube:"YouTube Shorts"}[v]??tr(lang,"Формат","Format")),
+ scriptStyle:(v:string,lang:Lang)=>({expert:"Экспертная",conversational:"Разговорная",dynamic:"Динамичная",sales:"Продающая"}[v]??tr(lang,"Стиль","Style")),
+ planGoal:(v:string,lang:Lang)=>({growth:"Рост",sales:"Продажи",engagement:"Вовлечение",expertise:"Экспертность"}[v]??tr(lang,"Цель","Goal")),
  planPlatform:(v:string,lang:Lang)=>({telegram:"Telegram",instagram:"Instagram",tiktok:"TikTok",youtube:"YouTube"}[v]??tr(lang,"Площадка","Platform")),
- planStyle:(v:string,lang:Lang)=>({expert:tr(lang,"🎨 Экспертный","🎨 Expert"),conversational:tr(lang,"🎨 Разговорный","🎨 Conversational"),news:tr(lang,"🎨 Новостной","🎨 News"),sales:tr(lang,"🎨 Продающий","🎨 Sales")}[v]??tr(lang,"🎨 Стиль","🎨 Style"))
+ planStyle:(v:string,lang:Lang)=>({expert:"Экспертный",conversational:"Разговорный",news:"Новостной",sales:"Продающий"}[v]??tr(lang,"Стиль","Style"))
 };
-
 export const menuBack=(lang:Lang="ru")=>b(tr(lang,"↩️ В меню","↩️ In menu"),"menu:back");
 export const back=(lang:Lang="ru")=>b(tr(lang,"↩️ Назад","↩️ Back"),"menu:back");
 
 export const postConfig=(d:PostDraft,lang:Lang="ru")=>({inline_keyboard:[
- [b(labels.postPlatform(d.platform,lang),"cfg:post:platform"),b(labels.postStyle(d.style,lang),"cfg:post:style")],
- [b(labels.postLength(d.length,lang),"cfg:post:length")],
- [b(tr(lang,"🚀 Создать пост","🚀 Create post"),"create"),menuBack(lang)]
+ [["telegram","instagram","tiktok","youtube"].map(v=>b(labels.postPlatform(v,lang),v===d.platform?"sel:selected:platform:"+v:"sel:"+v))].flat(),
+ [["expert","conversational","news","sales"].map(v=>b(labels.postStyle(v,lang),v===d.style?"sel:selected:style:"+v:"sel:"+v))].flat(),
+ [["short","medium","long"].map(v=>b(labels.postLength(v,lang),v===d.length?"sel:selected:length:"+v:"sel:"+v))].flat().concat([b(tr(lang,"🚀 Создать пост","🚀 Create post"),"create"),menuBack(lang)])
 ]});
 
 export const scriptConfig=(d:ScriptDraft,lang:Lang="ru")=>({inline_keyboard:[
- [b(labels.scriptPlatform(d.platform,lang),"cfg:script:platform"),b(labels.scriptStyle(d.style,lang),"cfg:script:style")],
- [b(d.duration?d.duration+(lang==="en"?" sec":" сек"):tr(lang,"Длительность","Duration"),"cfg:script:duration")],
- [b(tr(lang,"🚀 Создать сценарий","🚀 Create script"),"create"),menuBack(lang)]
+ [["tiktok","instagram","youtube"].map(v=>b(labels.scriptPlatform(v,lang),v===d.platform?"sel:selected:platform:"+v:"sel:"+v))].flat(),
+ [["expert","conversational","dynamic","sales"].map(v=>b(labels.scriptStyle(v,lang),v===d.style?"sel:selected:style:"+v:"sel:"+v))].flat(),
+ [["15","30","45","60"].map(v=>b(v+(lang==="en"?" sec":" сек"),v===d.duration?"sel:selected:duration:"+v:"sel:"+v))].flat().concat([b(tr(lang,"🚀 Создать сценарий","🚀 Create script"),"create"),menuBack(lang)])
 ]});
 
 export const planConfig=(d:PlanDraft,lang:Lang="ru")=>({inline_keyboard:[
- [b(labels.planGoal(d.goal,lang),"cfg:plan:goal"),b(labels.planPlatform(d.platform,lang),"cfg:plan:platform")],
- [b(labels.planStyle(d.style,lang),"cfg:plan:style")],
- [b(tr(lang,"🚀 Создать план","🚀 Create plan"),"create"),menuBack(lang)]
+ [["growth","sales","engagement","expertise"].map(v=>b(labels.planGoal(v,lang),v===d.goal?"sel:selected:goal:"+v:"sel:"+v))].flat(),
+ [["telegram","instagram","tiktok","youtube"].map(v=>b(labels.planPlatform(v,lang),v===d.platform?"sel:selected:platform:"+v:"sel:"+v))].flat(),
+ [["expert","conversational","news","sales"].map(v=>b(labels.planStyle(v,lang),v===d.style?"sel:selected:style:"+v:"sel:"+v))].flat().concat([b(tr(lang,"🚀 Создать план","🚀 Create plan"),"create"),menuBack(lang)])
 ]});
 
 export const optionKeyboard=(options:{text:string;data:string}[],backData:string,lang:Lang="ru")=>{
