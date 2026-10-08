@@ -20,6 +20,10 @@ describe("Final T3 UX",()=>{
   expect(texts(repurposeTargets(["telegram"],1))).toEqual(["✅ 📝 Telegram-пост","📸 Instagram caption","🎬 TikTok-сценарий","▶️ YouTube Shorts","🔥 5 Hook","🎯 CTA","📅 Контент на неделю","🚀 Создать контент","↩️ В меню"]);
  });
  it("uses exact generic result controls",()=>expect(texts(postResult(1))).toEqual(["📋 Скопировать","✏️ Изменить","🔄 Другой вариант","⭐ Сохранить в историю"]));
+ it("keeps every inline keyboard at three rows or fewer",()=>{
+  const keyboards=[mainMenu,postConfig({topic:"x",platform:"telegram",style:"conversational",length:"short"}),scriptConfig({topic:"x",platform:"tiktok",style:"dynamic",duration:"30"}),planConfig({topic:"x",goal:"growth",platform:"telegram",style:"expert"}),repurposeTargets(["telegram","instagram","tiktok"],3),postResult(1),settingsKeyboard,accountKeyboard,languageKeyboard,notificationKeyboard(true),helpKeyboard,tariffsKeyboard,creditsKeyboard(),insufficientKeyboard(),historyItem(1),styleExamples(true)];
+  for(const k of keyboards) expect(k.inline_keyboard.length).toBeLessThanOrEqual(3);
+ });
  it("uses exact Settings, tariff, credit and insufficient-credit controls",()=>{
   expect(texts(settingsKeyboard)).toEqual(["👤 Аккаунт","🌐 Язык","🔔 Уведомления","💬 Помощь","⚖️ Условия использования","🛡️ Конфиденциальность","↩️ В меню"]);
   expect(texts(accountKeyboard)).toEqual(["↩️ Назад"]);
@@ -33,6 +37,7 @@ describe("Final T3 UX",()=>{
  it("uses final History and My Style controls",()=>{
   expect(texts(historyItem(1))).toEqual(["▶️ Продолжить","📋 Скопировать","🗑 Удалить из истории","↩️ Назад к истории"]);
   expect(texts(styleExamples(false))).toEqual(["✨ Начать анализ","↩️ В меню"]);
+  expect(texts(styleExamples(true))).toEqual(["➕ Добавить пример","✨ Проанализировать стиль","↩️ В меню"]);
  });
  it("uses authoritative Russian copy",()=>{
   expect(ru.start("Alex")).toBe("🤖 Привет, Alex!\n\nCreator AI превращает идеи и готовые материалы в контент:\n\n✦ Посты и сценарии\n✦ Repurpose и контент-планы\n✦ Адаптация под разные площадки\n✦ Твой стиль\n\n⚡ Меньше времени. Больше контента.\n\nЧто создаём сегодня? 👇");
