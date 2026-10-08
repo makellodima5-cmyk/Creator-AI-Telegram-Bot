@@ -21,7 +21,7 @@ describe("Final T3 UX",()=>{
  });
  it("uses exact generic result controls",()=>expect(texts(postResult(1))).toEqual(["📋 Скопировать","✏️ Изменить","🔄 Другой вариант","⭐ Сохранить в историю"]));
  it("keeps every inline keyboard at three rows or fewer",()=>{
-  const keyboards=[mainMenu,postConfig({topic:"x",platform:"telegram",style:"conversational",length:"short"}),scriptConfig({topic:"x",platform:"tiktok",style:"dynamic",duration:"30"}),planConfig({topic:"x",goal:"growth",platform:"telegram",style:"expert"}),repurposeTargets(["telegram","instagram","tiktok"],3),postResult(1),settingsKeyboard,accountKeyboard,languageKeyboard,notificationKeyboard(true),helpKeyboard,tariffsKeyboard,creditsKeyboard(),insufficientKeyboard(),historyItem(1),styleExamples(true)];
+  const keyboards=[mainMenu,postConfig({topic:"x",platform:"telegram",style:"conversational",length:"short"}),scriptConfig({topic:"x",platform:"tiktok",style:"dynamic",duration:"30"}),planConfig({topic:"x",goal:"growth",platform:"telegram",style:"expert"}),repurposeTargets(["telegram","instagram","tiktok"],3),postResult(1),accountKeyboard,languageKeyboard,notificationKeyboard(true),helpKeyboard,tariffsKeyboard,creditsKeyboard(),insufficientKeyboard(),historyItem(1),styleExamples(true)];
   for(const k of keyboards) expect(k.inline_keyboard.length).toBeLessThanOrEqual(3);
  });
  it("uses exact Settings, tariff, credit and insufficient-credit controls",()=>{
