@@ -19,9 +19,9 @@ const getLang=(u:any):Lang=>String(u?.language)==="en"?"en":"ru";
 const tx=(u:any)=>copyFor(getLang(u));
 const setupMenu=async(env:Bindings,chatId:string,lang:Lang,isAdminUser=false)=>{
  const names=lang==="en"
-  ?[["post","Post"],["script","Script"],["repurpose","Repurpose"],["content_plan","Content Plan"],["history","History"],["tariffs","Tariffs"],["credits","Credits"],["my_style","My Style"],["settings","Settings"]]
-  :[["post","Пост"],["script","Сценарий"],["repurpose","Repurpose"],["content_plan","Контент-план"],["history","История"],["tariffs","Тарифы"],["credits","Кредиты"],["my_style","Мой стиль"],["settings","Настройки"]];
- if(isAdminUser)names.push(["admin",lang==="en"?"Admin Panel":"Админ-панель"]);
+  ?[["post","📝 Post"],["script","🎬 Script"],["repurpose","♻️ Repurpose"],["content_plan","📅 Content Plan"],["history","🕘 History"],["tariffs","💎 Tariffs"],["credits","🔹 Credits"],["my_style","🧠 My Style"],["settings","⚙️ Settings"]]
+  :[["post","📝 Post"],["script","🎬 Script"],["repurpose","♻️ Repurpose"],["content_plan","📅 Content Plan"],["history","🕘 History"],["tariffs","💎 Tariffs"],["credits","🔹 Credits"],["my_style","🧠 My Style"],["settings","⚙️ Settings"]];
+ if(isAdminUser)names.push(["admin",lang==="en"?"👨‍💻 Admin Panel":"👨‍💻 Admin Panel"]);
  await setMyCommands(env,names.map(([command,description])=>({command,description})),lang,{type:"chat",chat_id:chatId});
  await setChatMenuButton(env,chatId);
 };
