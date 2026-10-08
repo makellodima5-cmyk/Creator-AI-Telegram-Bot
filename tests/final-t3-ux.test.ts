@@ -17,7 +17,7 @@ describe("Final T3 UX",()=>{
    planConfig({topic:"x",goal:"growth",platform:"telegram",style:"expert"}),
    repurposeTargets(["telegram","tiktok"],6)
   ]) expect(k.inline_keyboard.length).toBeLessThanOrEqual(3);
-  expect(texts(repurposeTargets(["telegram"],1))).toEqual(["✅ 📱 Telegram","📸 Instagram","🎵 TikTok","▶️ YouTube Shorts","🔥 5 Hook","🎯 3 CTA","✅ 📅 Контент на неделю","🚀 Создать контент","↩️ В меню"]);
+  expect(texts(repurposeTargets(["telegram"],1))).toEqual(["✅ 📝 Telegram-пост","📸 Instagram caption","🎬 TikTok-сценарий","▶️ YouTube Shorts","🔥 5 Hook","🎯 CTA","✅ 📅 Контент на неделю","🚀 Создать контент","↩️ В меню"]);
  });
  it("uses exact generic result controls",()=>expect(texts(postResult(1))).toEqual(["📋 Скопировать","✏️ Изменить","🔄 Другой вариант","⭐ Сохранить в историю"]));
  it("uses exact Settings, tariff, credit and insufficient-credit controls",()=>{
