@@ -109,6 +109,17 @@ async function handleText(env:Bindings,userId:number,chatId:string,value:string,
   }catch{await editMessageText(env,chatId,Number(s.working_message_id),t.sourceInvalid).catch(()=>{})}
   return true;
  }
+ if(s.flow==="dayedit"&&s.step==="idea"){
+  const planJobId=Number(d.planJobId||0),dayId=Number(d.dayId||0),pos=Number(d.position??0);if(!planJobId||!dayId)return true;
+  await env.DB.prepare("UPDATE content_plan_days SET title=?,status='○',job_id=NULL,result_id=NULL,updated_at=? WHERE id=?").bind(v.slice(0,500),Date.now(),dayId).run();
+  await deleteMessage(env,chatId,messageId).catch(()=>{});
+  await env.DB.prepare("DELETE FROM user_sessions WHERE user_id=?").bind(userId).run();
+  const p=await env.DB.prepare("SELECT id FROM content_plans WHERE job_id=? AND user_id=?").bind(planJobId,userId).first<Any>();if(!p)return true;
+  const nd=(await daysForPlan(env,Number(p.id)))[pos];if(!nd)return true;const uu=await userById(env,userId),ll=getLang(uu),cost=await getPrice(env,String(nd.format||"").toLowerCase().includes("short")?"script":"post");
+  const body=ll==="en"?("📅 "+String(nd.day)+" / "+String(nd.title)+"\\n\\n🎯 "+String(nd.goal)+"\\n📱 "+String(nd.format)+"\\n🔥 "+String(nd.hook)+"\\n💡 "+String(nd.angle)+"\\n🧠 "+String(nd.mainThought)+"\\n🎯 "+String(nd.cta)+"\\n\\nStatus: "+String(nd.status)+"\\n💳 Generation cost: "+cost+" 🔹"):("📅 "+String(nd.day)+" / "+String(nd.title)+"\\n\\n🎯 "+String(nd.goal)+"\\n📱 "+String(nd.format)+"\\n🔥 "+String(nd.hook)+"\\n💡 "+String(nd.angle)+"\\n🧠 "+String(nd.mainThought)+"\\n🎯 "+String(nd.cta)+"\\n\\nСтатус: "+String(nd.status)+"\\n💳 Стоимость генерации: "+cost+" 🔹");
+  const kb={inline_keyboard:[[{text:ll==="en"?"🚀 Create":"🚀 Создать",callback_data:"day:"+planJobId+":"+pos}],[{text:ll==="en"?"✏️ Change idea":"✏️ Изменить идею",callback_data:"dayedit:"+planJobId+":"+pos}],[{text:ll==="en"?"↩️ Back to plan":"↩️ Назад к плану",callback_data:"planopen:"+planJobId}]]};
+  return editMessageText(env,chatId,Number(s.working_message_id||0),body,kb).catch(()=>true);
+ }
  if(s.flow==="post"||s.flow==="script"||s.flow==="plan"){
   if(s.step!=="topic")return true;d.topic=v.slice(0,12000);await deleteMessage(env,chatId,messageId).catch(()=>{});
   await saveSession(env,userId,s.flow,"config",d,Number(s.working_message_id),chatId,7200000,s.active_job_id?Number(s.active_job_id):null);
