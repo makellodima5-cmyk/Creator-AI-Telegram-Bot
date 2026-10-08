@@ -25,7 +25,7 @@ const setupMenu=async(env:Bindings,chatId:string,lang:Lang,isAdminUser=false)=>{
  await setMyCommands(env,names.map(([command,description])=>({command,description})),lang,{type:"chat",chat_id:chatId});
  await setChatMenuButton(env,chatId);
 };
-const allowedDuringLock=(d:string)=>d==="menu:pricing"||d==="menu:credits"||d==="menu:settings"||d==="settings:profile"||d==="menu:back"||d==="back"||d==="cancel"||d.startsWith("settings:");
+const allowedDuringLock=(d:string)=>d==="menu:pricing"||d==="menu:credits"||d==="menu:settings"||d==="settings:profile"||d==="menu:back"||d==="back"||d.startsWith("settings:");
 async function hasLock(env:Bindings,userId:number){const r=await env.DB.prepare("SELECT generation_lock_job_id FROM users WHERE id=?").bind(userId).first<Any>();return Number(r?.generation_lock_job_id||0)>0}
 async function saveSession(env:Bindings,userId:number,flow:string,step:string,draft:Any,msgId?:number,chatId?:string,ttl=7200000,activeJobId:number|null=null){
  const n=Date.now();
@@ -70,7 +70,7 @@ export async function handleWebhook(env:Bindings,update:unknown){
    "/settings":()=>showSettings(env,user.id,chatId,undefined)
   };
   if(menuCommands[cmd]){
-   if(await hasLock(env,user.id)&&cmd!=="/settings")return sendMessage(env,chatId,t.locked);
+   if(await hasLock(env,user.id)&&!["/settings","/tariffs","/credits"].includes(cmd))return sendMessage(env,chatId,t.locked);
    return menuCommands[cmd]();
   }
   if(cb){
@@ -187,7 +187,11 @@ async function openAction(env:Bindings,userId:number,chatId:string,data:string,m
  if(data.startsWith("cfgback:")){const flow=data.slice(8);return renderConfig(env,userId,chatId,flow,msg);}
  if(data.startsWith("target:"))return selectTarget(env,userId,chatId,data.slice(7),msg);
  if(data==="create")return createCurrent(env,userId,chatId,msg,updateId);
- if(data==="cancel"){if(s?.flow==="repurpose"&&s.step==="select")await clearPendingRepurpose(env,userId);return openMain(env,userId,chatId,msg)}
+ if(data==="cancel"){
+  if(locked)return sendMessage(env,chatId,t.locked);
+  if(s?.flow==="repurpose"&&s.step==="select")await clearPendingRepurpose(env,userId);
+  return openMain(env,userId,chatId,msg)
+}
  if(data.startsWith("copy:"))return copyResult(env,userId,chatId,Number(data.split(":")[1]));
  if(data.startsWith("hcopy:"))return copyResult(env,userId,chatId,Number(data.split(":")[1]));
  if(data.startsWith("save:"))return saveResult(env,userId,chatId,Number(data.split(":")[1]));
@@ -253,7 +257,7 @@ async function renderConfig(env:Bindings,userId:number,chatId:string,flow:string
 }
 async function selectParam(env:Bindings,userId:number,chatId:string,key:string,msg:Any){
  const s=await sessionByUser(env,userId);if(!s)return;const d=parse(s.draft_json);
- if(s.flow==="post"){if(["telegram","instagram","tiktok","youtube"].includes(key)&&!d.resultType)d.platform=key;else if(["expert","conversational","news","sales"].includes(key))d.style=key;else if(["short","medium","long"].includes(key))d.length=key;await saveSession(env,userId,"post","config",d,Number(msg.message_id),chatId);return renderConfig(env,userId,chatId,"post",msg)}
+ if(s.flow==="post"){if(["telegram","instagram","tiktok","youtube"].includes(key))d.platform=key;else if(["expert","conversational","news","sales"].includes(key))d.style=key;else if(["short","medium","long"].includes(key))d.length=key;await saveSession(env,userId,"post","config",d,Number(msg.message_id),chatId);return renderConfig(env,userId,chatId,"post",msg)}
  if(s.flow==="script"){if(["tiktok","instagram","youtube"].includes(key)&&!d.resultType)d.platform=key;else if(["expert","conversational","dynamic","sales"].includes(key))d.style=key;else if(["15","30","45","60"].includes(key))d.duration=key;await saveSession(env,userId,"script","config",d,Number(msg.message_id),chatId);return renderConfig(env,userId,chatId,"script",msg)}
  if(s.flow==="plan"){if(["growth","sales","engagement","expertise"].includes(key))d.goal=key;else if(["telegram","instagram","tiktok","youtube"].includes(key))d.platform=key;else if(["expert","conversational","news","sales"].includes(key))d.style=key;await saveSession(env,userId,"plan","config",d,Number(msg.message_id),chatId);return renderConfig(env,userId,chatId,"plan",msg)}
 }
@@ -264,13 +268,26 @@ async function selectTarget(env:Bindings,userId:number,chatId:string,key:string,
  return editMessageText(env,chatId,Number(msg.message_id),tx(u).repSelect(d.credits),repurposeTargets(d.selectedOutputs,getLang(u)));
 }
 async function createCurrent(env:Bindings,userId:number,chatId:string,msg:Any,updateId:number){
- const s=await sessionByUser(env,userId);if(!s)return;const d=parse(s.draft_json),flow=String(s.flow),u=await userById(env,userId);
+ const s=await sessionByUser(env,userId);if(!s)return;
+ const d=parse(s.draft_json),flow=String(s.flow),u=await userById(env,userId),lang=getLang(u);
  let type=flow,cost=0,sourceId:number|null=null,parentJobId=Number(d.parentJobId||0)||null;
- if(flow==="post"||flow==="script")cost=await getPrice(env,flow);
- else if(flow==="plan"){type="content_plan";cost=await getPrice(env,"content_plan")}
- else if(flow==="repurpose"){if(!d.selectedOutputs?.length)return sendMessage(env,chatId,getLang(u)==="en"?"⚠️ Select at least one result.":"⚠️ Выбери хотя бы один результат.");cost=await repurposeTotal(env,d.selectedOutputs);sourceId=Number(d.sourceId);if(d.jobId)return continueRepurpose(env,userId,chatId,s,d,cost)}
- else if(flow==="repurpose_edit"){const out=String(d.resultType||"");if(!out)return;cost=await getPrice(env,"repurpose_"+out);type="repurpose_result";sourceId=Number(d.sourceId||0)||null}
- else return;
+ if(flow==="post"){
+  if(!d.platform||!d.style||!d.length)return sendMessage(env,chatId,lang==="en"?"Choose platform, style and length first.":"Сначала выбери площадку, стиль и размер.");
+  cost=await getPrice(env,"post");
+ }else if(flow==="script"){
+  if(!d.platform||!d.style||!d.duration)return sendMessage(env,chatId,lang==="en"?"Choose format, style and duration first.":"Сначала выбери формат, стиль и длительность.");
+  cost=await getPrice(env,"script");
+ }else if(flow==="plan"){
+  if(!d.goal||!d.platform||!d.style)return sendMessage(env,chatId,lang==="en"?"Choose goal, platform and style first.":"Сначала выбери цель, площадку и стиль.");
+  type="content_plan";cost=await getPrice(env,"content_plan");
+ }else if(flow==="repurpose"){
+  if(!d.selectedOutputs?.length)return sendMessage(env,chatId,lang==="en"?"⚠️ Select at least one result.":"⚠️ Выбери хотя бы один результат.");
+  cost=await repurposeTotal(env,d.selectedOutputs);sourceId=Number(d.sourceId);
+  if(d.jobId)return continueRepurpose(env,userId,chatId,s,d,cost);
+ }else if(flow==="repurpose_edit"){
+  const out=String(d.resultType||"");if(!out||!["telegram","instagram","tiktok","youtube","hooks","cta","plan"].includes(out))return;
+  cost=await getPrice(env,"repurpose_"+out);type="repurpose_result";sourceId=Number(d.sourceId||0)||null;
+ }else return;
  const input={...d,sourceText:d.sourceText,previousResult:d.previousResult,phase:"generation"};
  const r=await createJob(env,{userId,chatId,type,input,cost,workingMessageId:Number(s.working_message_id||msg?.message_id||0),sourceId,parentJobId,idempotencyKey:"create:"+userId+":"+flow+":"+stableKey(input)});
  if(r?.jobId)await saveSession(env,userId,flow,"processing",{...d,jobId:r.jobId},Number(s.working_message_id||msg?.message_id||0),chatId,14400000,r.jobId);
@@ -316,10 +333,14 @@ async function editResult(env:Bindings,userId:number,chatId:string,id:number,msg
   const d={resultType:output,editResultId:id,parentJobId:Number(r.job_id),sourceId,sourceText,previousResult:parse(r.content_json)};const p=await getPrice(env,"repurpose_"+output);await saveSession(env,userId,"repurpose_edit","config",d,Number(msg.message_id),chatId,7200000,null);return editMessageText(env,chatId,Number(msg.message_id),getLang(u)==="en"?("♻️ Creator AI / Repurpose\\n\\nChange this result and create a new version.\\n\\n💳 Generation cost: "+p+" 🔹"):("♻️ Creator AI / Repurpose\\n\\nИзмени этот результат и создай новую версию.\\n\\n💳 Стоимость генерации: "+p+" 🔹"),{inline_keyboard:[[{text:getLang(u)==="en"?"🚀 Create":"🚀 Создать","callback_data:"create"}],[{text:getLang(u)==="en"?"↩️ In menu":"↩️ В меню","callback_data:"menu:back"}]]});
  }
 }
-async function variantResult(env:Bindings,userId:number,chatId:string,id:number,updateId:number,_msg:Any){
- const r=await resultRow(env,userId,id);if(!r)return;const rt=String(r.result_type),u=await userById(env,userId),j=parse(r.job_input),base=rt==="post"?"post_variant":rt==="script"?"script_variant":rt==="content_plan"?"content_plan_variant":"repurpose_"+rt.replace(/^repurpose_/,""),sourceId=Number(r.source_id||j.sourceId||0)||null;
- const d={...j,previousResult:parse(r.content_json),resultType:rt.replace(/^repurpose_/,""),sourceText:j.sourceText||await sourceForResult(env,r),sourceId};
- const m=await sendMessage(env,chatId,tx(u).processingSteps(rt==="content_plan"?"content_plan":rt==="script"?"script":"repurpose")[0]);return createJob(env,{userId,chatId,type:rt.startsWith("repurpose_")?"repurpose_result":rt,input:d,cost:await getPrice(env,base),workingMessageId:Number(m.message_id),sourceId,parentJobId:Number(r.job_id),idempotencyKey:"variant:"+userId+":"+id+":"+stableKey({result:parse(r.content_json),updateId})});
+async function variantResult(env:Bindings,userId:number,chatId:string,id:number,updateId:number,msg:Any){
+ const r=await resultRow(env,userId,id);if(!r)return;
+ const rt=String(r.result_type),u=await userById(env,userId),j=parse(r.job_input);
+ const base=rt==="post"?"post_variant":rt==="script"?"script_variant":rt==="content_plan"?"content_plan_variant":"repurpose_"+rt.replace(/^repurpose_/,"");
+ const d={...j,previousResult:parse(r.content_json),resultType:rt.replace(/^repurpose_/,""),sourceText:j.sourceText||await sourceForResult(env,r),sourceId:Number(r.source_id||j.sourceId||0)||null};
+ const wm=Number(msg?.message_id||r.telegram_message_id||j.telegram_message_id||0);if(!wm)return;
+ await editMessageText(env,chatId,wm,tx(u).processingSteps(rt==="content_plan"?"content_plan":rt==="script"?"script":"repurpose")[0]).catch(()=>{});
+ return createJob(env,{userId,chatId,type:rt.startsWith("repurpose_")?"repurpose_result":rt,input:d,cost:await getPrice(env,base),workingMessageId:wm,sourceId:d.sourceId,parentJobId:Number(r.job_id),idempotencyKey:"variant:"+userId+":"+id});
 }
 async function retryJob(env:Bindings,userId:number,chatId:string,id:number,updateId:number){
  const j=await env.DB.prepare("SELECT * FROM jobs WHERE id=? AND user_id=? AND status='failed'").bind(id,userId).first<Any>();if(!j)return;const d=parse(j.input_json),rt=j.type==="content_plan"?"content_plan":j.type==="repurpose_result"?"repurpose_"+String(d.resultType||"telegram"):j.type,cost=await getPrice(env,rt),lang=getLang(await userById(env,userId));if(d.phase==="analysis"||j.type==="repurpose"&&d.phase==="analysis")return createJob(env,{userId,chatId,type:"repurpose",input:d,cost:0,workingMessageId:Number(j.telegram_message_id||0),sourceId:j.source_id||null,idempotencyKey:"retry:"+userId+":"+id});
@@ -393,8 +414,13 @@ async function completePayment(env:Bindings,userId:number,p:Any){
 }
 async function showPlanDays(env:Bindings,userId:number,chatId:string,jobId:number,msg:Any){const p=await env.DB.prepare("SELECT id FROM content_plans WHERE job_id=? AND user_id=?").bind(jobId,userId).first<Any>();if(!p)return;const u=await userById(env,userId),days=await daysForPlan(env,Number(p.id)),buttons=days.map((d:any,i:number)=>({text:"📅 "+String(d.day??(getLang(u)==="en"?"Day ":"День ")+(i+1)),callback_data:"dayview:"+jobId+":"+i})),rows=[buttons.slice(0,4),buttons.slice(4,7),[{text:getLang(u)==="en"?"↩️ Back":"↩️ Назад",callback_data:"planopen:"+jobId}]];return editMessageText(env,chatId,Number(msg.message_id),getLang(u)==="en"?"📅 Content Plan / Days":"📅 Content Plan / Дни",{inline_keyboard:rows})}
 async function showPlanDay(env:Bindings,userId:number,chatId:string,jobId:number,pos:number,msg:Any){const p=await env.DB.prepare("SELECT id FROM content_plans WHERE job_id=? AND user_id=?").bind(jobId,userId).first<Any>();if(!p)return;const days=await daysForPlan(env,Number(p.id)),d=days[pos];if(!d)return;const u=await userById(env,userId),t=tx(u),b=String(d.format||"").toLowerCase().includes("short"),cost=await getPrice(env,b?"script":"post"),body=getLang(u)==="en"?("📅 "+String(d.day)+" / "+String(d.title)+"\\n\\n🎯 "+String(d.goal)+"\\n📱 "+String(d.format)+"\\n🔥 "+String(d.hook)+"\\n💡 "+String(d.angle)+"\\n🧠 "+String(d.mainThought)+"\\n🎯 "+String(d.cta)+"\\n\\nStatus: "+String(d.status)+"\\n💳 Generation cost: "+cost+" 🔹"):("📅 "+String(d.day)+" / "+String(d.title)+"\\n\\n🎯 "+String(d.goal)+"\\n📱 "+String(d.format)+"\\n🔥 "+String(d.hook)+"\\n💡 "+String(d.angle)+"\\n🧠 "+String(d.mainThought)+"\\n🎯 "+String(d.cta)+"\\n\\nСтатус: "+String(d.status)+"\\n💳 Стоимость генерации: "+cost+" 🔹"),kb={inline_keyboard:[[{text:getLang(u)==="en"?"✏️ Change idea":"✏️ Изменить идею",callback_data:"dayedit:"+jobId+":"+pos}],[{text:getLang(u)==="en"?"🚀 Create":"🚀 Создать",callback_data:"day:"+jobId+":"+pos}],[{text:getLang(u)==="en"?"↩️ Back to plan":"↩️ Назад к плану",callback_data:"planopen:"+jobId}]]};return editMessageText(env,chatId,Number(msg?.message_id),body,kb)}
-async function createPlanDay(env:Bindings,userId:number,chatId:string,jobId:number,pos:number,updateId:number,msgId:number){
- const j=await env.DB.prepare("SELECT * FROM jobs WHERE id=? AND user_id=? AND type='content_plan'").bind(jobId,userId).first<Any>();if(!j)return;const p=await env.DB.prepare("SELECT * FROM content_plans WHERE job_id=?").bind(jobId).first<Any>();if(!p)return;const d=(await daysForPlan(env,p.id))[pos];if(!d||d.status==="⏳"||d.status==="✅")return;await env.DB.prepare("UPDATE content_plan_days SET status='⏳',updated_at=? WHERE id=? AND status='○'").bind(Date.now(),d.id).run();const b=parse(j.input_json),res=await createPlanDayJob(env,{userId,planDayId:d.id,chatId,workingMessageId:msgId,topic:d.title,goal:d.goal,platform:b.platform||"telegram",style:b.style||"expert",format:d.format,hook:d.hook,angle:d.angle,mainThought:d.mainThought,cta:d.cta});return res}
+async function createPlanDay(env:Bindings,userId:number,chatId:string,jobId:number,pos:number,_updateId:number,msgId:number){
+ const j=await env.DB.prepare("SELECT * FROM jobs WHERE id=? AND user_id=? AND type='content_plan'").bind(jobId,userId).first<Any>();if(!j)return;
+ const p=await env.DB.prepare("SELECT * FROM content_plans WHERE job_id=? AND user_id=?").bind(jobId,userId).first<Any>();if(!p)return;
+ const d=(await daysForPlan(env,p.id))[pos];if(!d||d.status==="⏳"||d.status==="✅")return;
+ const b=parse(j.input_json);
+ return createPlanDayJob(env,{userId,planDayId:d.id,chatId,workingMessageId:msgId,topic:d.title,goal:d.goal,platform:b.platform||"telegram",style:b.style||"expert",format:d.format,hook:d.hook,angle:d.angle,mainThought:d.mainThought,cta:d.cta});
+}
 async function startPlanDayEdit(env:Bindings,userId:number,chatId:string,jobId:number,pos:number,msg:Any){const p=await env.DB.prepare("SELECT id FROM content_plans WHERE job_id=? AND user_id=?").bind(jobId,userId).first<Any>();if(!p)return;const d=(await daysForPlan(env,p.id))[pos];if(!d||d.status!=="○")return;const u=await userById(env,userId),ll=getLang(u),body=ll==="en"?"✏️ Change idea\\n\\nSend a new idea in one message.":"✏️ Изменить идею\\n\\nОтправь новую идею одним сообщением.",kb={inline_keyboard:[[ll==="en"?{text:"↩️ Back to plan",callback_data:"planopen:"+jobId}:{text:"↩️ Назад к плану",callback_data:"planopen:"+jobId}]]};return editMessageText(env,chatId,Number(msg.message_id),body,kb).then(()=>saveSession(env,userId,"dayedit","idea",{planJobId:jobId,dayId:d.id,position:pos},Number(msg.message_id),chatId))}
 async function reopenPlan(env:Bindings,userId:number,chatId:string,jobId:number,msg:Any){const p=await env.DB.prepare("SELECT * FROM content_plans WHERE job_id=? AND user_id=?").bind(jobId,userId).first<Any>();if(!p)return;const r=await env.DB.prepare("SELECT * FROM job_results WHERE job_id=? AND result_type='content_plan'").bind(jobId).first<Any>(),u=await userById(env,userId);return editMessageText(env,chatId,Number(msg?.message_id),resultMarkup("content_plan",parse(r?.content_json||JSON.stringify({days:await daysForPlan(env,p.id)})),getLang(u)),planResult(jobId,await daysForPlan(env,p.id),Number(r?.id||0),getLang(u)))}
 async function retryDelivery(env:Bindings,userId:number,resultId:number,chatId:string){const d=await env.DB.prepare("SELECT * FROM deliveries WHERE result_id=? AND user_id=?").bind(resultId,userId).first<Any>();if(!d||d.status==="sent")return;const u=await userById(env,userId);await env.DB.prepare("UPDATE deliveries SET status='queued',next_retry_at=NULL,last_error=NULL WHERE id=? AND user_id=? AND status!='sent'").bind(d.id,userId).run();await env.DELIVERY_QUEUE.send({deliveryId:Number(d.id)});return sendMessage(env,chatId,getLang(u)==="en"?"✅ Delivery retry queued.":"✅ Повторная доставка поставлена в очередь.")}
