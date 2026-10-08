@@ -32,17 +32,11 @@ export const optionKeyboard=(options:{text:string;data:string}[],back:string)=>{
   const rows:any[][]=[];for(let i=0;i<options.length;i+=2)rows.push(options.slice(i,i+2).map(x=>b(x.text,x.data)));
   rows.push([b("↩️ Назад",back)]);return{inline_keyboard:rows};
 };
-export const repurposeTargets=(selectedOutputs:string[],_price:number)=>{
-  const labels:[string,string][]=[
-    ["telegram","📱 Telegram"],["instagram","📸 Instagram"],["tiktok","🎵 TikTok"],
-    ["youtube","▶️ YouTube Shorts"],["hooks","🔥 5 Hook"],["cta","🎯 3 CTA"],["plan","📅 Контент на неделю"]
-  ];
-  return{inline_keyboard:[
-    labels.slice(0,3).map(([k,l])=>mark(selectedOutputs.includes(k),l,"target:"+k)),
-    labels.slice(3,6).map(([k,l])=>mark(selectedOutputs.includes(k),l,"target:"+k)),
-    [mark(selectedOutputs.includes("plan"),"📅 Контент на неделю","target:plan"),b("🚀 Создать контент","create"),b("↩️ В меню","menu:back")]
-  ]};
-};
+export const repurposeTargets=(selectedOutputs:string[],_price:number)=>({inline_keyboard:[
+  [["telegram","📱 Telegram"],["instagram","📸 Instagram"],["tiktok","🎵 TikTok"]].map(([k,l])=>mark(selectedOutputs.includes(k),l,"target:"+k)),
+  [["youtube","▶️ YouTube Shorts"],["hooks","🔥 5 Hook"],["cta","🎯 3 CTA"]].map(([k,l])=>mark(selectedOutputs.includes(k),l,"target:"+k)),
+  [mark(selectedOutputs.includes("plan"),"📅 Контент на неделю","target:plan"),b("🚀 Создать контент","create"),b("↩️ В меню","menu:back")]
+]});
 export const postResult=(id:number)=>({inline_keyboard:[
   [b("📋 Скопировать","copy:"+id),b("✏️ Изменить","edit:"+id)],
   [b("🔄 Другой вариант","variant:"+id),b("⭐ Сохранить в историю","save:"+id)]
