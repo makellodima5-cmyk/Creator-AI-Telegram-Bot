@@ -345,7 +345,6 @@ async function editResult(env:Bindings,userId:number,chatId:string,id:number,msg
 async function variantResult(env:Bindings,userId:number,chatId:string,id:number,updateId:number,msg:Any){
  const r=await resultRow(env,userId,id);if(!r)return;
  const rt=String(r.result_type),u=await userById(env,userId),j=parse(r.job_input);
- const base=rt==="post"?"post":rt==="script"?"script":rt==="content_plan"?"content_plan":"repurpose_result";
  const d={...j,variantOfResultId:id,parentJobId:Number(r.job_id),previousResult:parse(r.content_json),resultType:rt.replace(/^repurpose_/,""),sourceText:j.sourceText||await sourceForResult(env,r),sourceId:Number(r.source_id||j.sourceId||0)||null};
  const wm=Number(msg?.message_id||r.telegram_message_id||j.telegram_message_id||0);if(!wm)return;
  const op=rt.startsWith("repurpose_")?"repurpose":"content_plan"===rt?"content_plan":rt;
@@ -354,9 +353,13 @@ async function variantResult(env:Bindings,userId:number,chatId:string,id:number,
  return createJob(env,{userId,chatId,type,input:{...d,phase:"generation"},cost:await getPrice(env,"other_variant"),workingMessageId:wm,sourceId:d.sourceId,parentJobId:Number(r.job_id),idempotencyKey:"variant:"+userId+":"+id});
 }
 async function retryJob(env:Bindings,userId:number,chatId:string,id:number,updateId:number){
- const j=await env.DB.prepare("SELECT * FROM jobs WHERE id=? AND user_id=? AND status='failed'").bind(id,userId).first<Any>();if(!j)return;const d=parse(j.input_json),rt=j.type==="content_plan"?"content_plan":j.type==="repurpose_result"?"repurpose_"+String(d.resultType||"telegram"):j.type,cost=await getPrice(env,rt),lang=getLang(await userById(env,userId));if(d.phase==="analysis"||j.type==="repurpose"&&d.phase==="analysis")return createJob(env,{userId,chatId,type:"repurpose",input:d,cost:0,workingMessageId:Number(j.telegram_message_id||0),sourceId:j.source_id||null,idempotencyKey:"retry:"+userId+":"+id});
- const wm=Number(j.telegram_message_id||0);if(wm)await editMessageText(env,chatId,wm,tx(await userById(env,userId)).processingSteps(j.type==="content_plan"?"content_plan":j.type==="script"?"script":"repurpose")[0]).catch(()=>{});
- return createJob(env,{userId,chatId,type:j.type,input:d,cost,workingMessageId:wm,sourceId:j.source_id||null,parentJobId:j.id,idempotencyKey:"retry:"+userId+":"+id+":"+updateId});
+ const j=await env.DB.prepare("SELECT * FROM jobs WHERE id=? AND user_id=? AND status='failed'").bind(id,userId).first<Any>();if(!j)return;
+ const d=parse(j.input_json),type=String(j.type);
+ const cost=type.endsWith("_edit")||type==="repurpose_edit"?await getPrice(env,"edit"):type.endsWith("_variant")||type==="repurpose_variant"?await getPrice(env,"other_variant"):type==="repurpose_result"?await getPrice(env,"repurpose_"+String(d.resultType||"telegram")):await getPrice(env,type);
+ const lang=getLang(await userById(env,userId));
+ if((type==="repurpose"&&d.phase==="analysis")||d.phase==="analysis")return createJob(env,{userId,chatId,type:"repurpose",input:d,cost:0,workingMessageId:Number(j.telegram_message_id||0),sourceId:j.source_id||null,idempotencyKey:"retry:"+userId+":"+id});
+ const wm=Number(j.telegram_message_id||0);if(wm)await editMessageText(env,chatId,wm,copyFor(lang).processingSteps(type.startsWith("content_plan")?"content_plan":type.startsWith("script")?"script":type.startsWith("post")?"post":"repurpose")[0]).catch(()=>{});
+ return createJob(env,{userId,chatId,type,input:d,cost,workingMessageId:wm,sourceId:j.source_id||null,parentJobId:j.id,idempotencyKey:"retry:"+userId+":"+id+":"+updateId});
 }
 async function retryRepurpose(env:Bindings,userId:number,chatId:string,id:number,updateId:number){
  const r=await env.DB.prepare("SELECT result_type FROM job_results WHERE job_id=? AND status='failed' ORDER BY position").bind(id).all<Any>(),j=await env.DB.prepare("SELECT * FROM jobs WHERE id=? AND user_id=?").bind(id,userId).first<Any>();if(!j)return;const outs=(r.results||[]).map((x:any)=>String(x.result_type).replace(/^repurpose_/,""));if(!outs.length)return;const d=parse(j.input_json);d.selectedOutputs=outs;const wm=Number(j.telegram_message_id||0);const u=await userById(env,userId);if(wm)await editMessageText(env,chatId,wm,tx(u).processingSteps("repurpose")[0]).catch(()=>{});return createJob(env,{userId,chatId,type:"repurpose",input:d,cost:await repurposeTotal(env,outs),workingMessageId:wm,sourceId:j.source_id||null,parentJobId:j.id,idempotencyKey:"rep-retry:"+userId+":"+id+":"+updateId});
