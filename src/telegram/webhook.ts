@@ -233,28 +233,27 @@ async function openStyle(env:Bindings,userId:number,chatId:string,msg?:Any){
 }
 async function configOptions(env:Bindings,userId:number,chatId:string,data:string,msg:Any){
  const u=await userById(env,userId),lang=getLang(u);
- const items:Record<string,{items:{text:string;data:string}[];back:string}>={
+ const items:Record<string,{items:Array<[string,string]>;back:string}>={
   "cfg:post:platform":{items:[["Telegram","telegram"],["Instagram","instagram"],["TikTok","tiktok"],["YouTube","youtube"]],back:"cfgback:post"},
   "cfg:post:style":{items:[["Экспертный","expert"],["Разговорный","conversational"],["Новостной","news"],["Продающий","sales"]],back:"cfgback:post"},
   "cfg:post:length":{items:[["Короткий","short"],["Средний","medium"],["Длинный","long"]],back:"cfgback:post"},
   "cfg:script:platform":{items:[["TikTok","tiktok"],["Reels","instagram"],["YouTube Shorts","youtube"]],back:"cfgback:script"},
   "cfg:script:style":{items:[["Экспертная","expert"],["Разговорная","conversational"],["Динамичная","dynamic"],["Продающая","sales"]],back:"cfgback:script"},
-  "cfg:script:duration":{items:["15","30","45","60"].map(x=>({text:lang==="en"?x+" sec":x+" сек",data:x})),back:"cfgback:script"},
+  "cfg:script:duration":{items:[["15","15"],["30","30"],["45","45"],["60","60"]],back:"cfgback:script"},
   "cfg:plan:goal":{items:[["Рост","growth"],["Продажи","sales"],["Вовлечение","engagement"],["Экспертность","expertise"]],back:"cfgback:plan"},
   "cfg:plan:platform":{items:[["Telegram","telegram"],["Instagram","instagram"],["TikTok","tiktok"],["YouTube","youtube"]],back:"cfgback:plan"},
   "cfg:plan:style":{items:[["Экспертный","expert"],["Разговорный","conversational"],["Новостной","news"],["Продающий","sales"]],back:"cfgback:plan"}
  };
  const x=items[data];if(!x)return;
- const rows:any[][]=[];for(let i=0;i<x.items.length;i+=2)rows.push(x.items.slice(i,i+2).map(z=>({text:lang==="en"?({
-   "Telegram":"Telegram","Instagram":"Instagram","TikTok":"TikTok","YouTube":"YouTube","Экспертный":"Expert","Разговорный":"Conversational","Новостной":"News","Продающий":"Sales","Короткий":"Short","Средний":"Medium","Длинный":"Long","Экспертная":"Expert","Разговорная":"Conversational","Динамичная":"Dynamic","Продающая":"Sales","Рост":"Growth","Продажи":"Sales","Вовлечение":"Engagement","Экспертность":"Expertise","Reels":"Reels","YouTube Shorts":"YouTube Shorts"
-  } as Record<string,string>)[z.text]??z.text:z.text,callback_data:"sel:"+z.data})));
+ const enLabel:Record<string,string>={"Экспертный":"Expert","Разговорный":"Conversational","Новостной":"News","Продающий":"Sales","Короткий":"Short","Средний":"Medium","Длинный":"Long","Экспертная":"Expert","Разговорная":"Conversational","Динамичная":"Dynamic","Продающая":"Sales","Рост":"Growth","Продажи":"Sales","Вовлечение":"Engagement","Экспертность":"Expertise"};
+ const rows:any[][]=[];for(let i=0;i<x.items.length;i+=2)rows.push(x.items.slice(i,i+2).map(([label,val])=>({text:lang==="en"?(enLabel[label]??label):label,callback_data:"sel:"+val})));
  rows.push([{text:lang==="en"?"↩️ Back":"↩️ Назад",callback_data:x.back}]);
  return editMessageText(env,chatId,Number(msg.message_id),lang==="en"?"Choose a parameter:":"Выбери параметр:",{inline_keyboard:rows});
 }
 async function renderConfig(env:Bindings,userId:number,chatId:string,flow:string,msg:Any){
  const s=await sessionByUser(env,userId),u=await userById(env,userId),t=tx(u),d=parse(s?.draft_json),price=await getPrice(env,flow==="plan"?"content_plan":flow);
  const body=flow==="post"?t.postConfig(price,d):flow==="script"?t.scriptConfig(price,d):t.planConfig(price,d);
- const kb=flow==="post"?postConfig(d,getLang(u)):flow==="script"?scriptConfig(d,getLang(u)):planConfig(d,getLang(u));
+ const kb=flow==="post"?postConfig(d as any,getLang(u)):flow==="script"?scriptConfig(d as any,getLang(u)):planConfig(d as any,getLang(u));
  return editMessageText(env,chatId,Number(msg.message_id),body,kb);
 }
 async function selectParam(env:Bindings,userId:number,chatId:string,key:string,msg:Any){
