@@ -1,5 +1,5 @@
 import type{Bindings}from"../env";
-import{ensureUser}from"../billing/credits";
+import{ensureUser,addTransaction}from"../billing/credits";
 import{getPrice,getPackage,getPlan,getHistoryDuration}from"../config";
 import{createTextSource,createDocumentSource}from"../files/source";
 import{createJob}from"../jobs/create";
@@ -404,13 +404,23 @@ async function handlePreCheckout(env:Bindings,q:Any){
  return answerPreCheckoutQuery(env,String(q.id),ok,ok?undefined:(String(u?.language)==="en"?"Payment data mismatch.":"Платёж не совпадает с выставленным счётом."));
 }
 async function completePayment(env:Bindings,userId:number,p:Any){
- const row=await env.DB.prepare("SELECT * FROM payments WHERE invoice_payload=?").bind(String(p.invoice_payload)).first<Any>();if(!row||Number(row.user_id)!==userId)return;
- const c=await env.DB.prepare("UPDATE payments SET status='paid',telegram_payment_charge_id=? WHERE id=? AND status='pending' AND currency='XTR' AND stars_amount=?").bind(p.telegram_payment_charge_id,row.id,p.total_amount).run();if(c.meta.changes!==1)return;
+ const row=await env.DB.prepare("SELECT * FROM payments WHERE invoice_payload=?").bind(String(p.invoice_payload)).first<Any>();
+ if(!row||Number(row.user_id)!==userId)return;
+ const c=await env.DB.prepare("UPDATE payments SET status='paid',telegram_payment_charge_id=? WHERE id=? AND status='pending' AND currency='XTR' AND stars_amount=?").bind(p.telegram_payment_charge_id,row.id,p.total_amount).run();
+ if(c.meta.changes!==1)return;
  const u=await userById(env,userId),key=String(row.product_key||"");
- if(key.startsWith("credits:")){const x=await getPackage(env,Number(key.slice(8)));const b=Number(u?.credits_balance||0)+Number(x?.credits||0);await env.DB.prepare("UPDATE users SET credits_balance=?,updated_at=? WHERE id=?").bind(b,Date.now(),userId).run();return}
- const plan=await getPlan(env,key);if(!plan)return;const exp=Date.now()+Number(plan.duration_days||30)*86400000,b=Number(u?.credits_balance||0)+Number(plan.included_credits||0);
+ if(key.startsWith("credits:")){
+  const amount=Number(key.slice(8)),pack=await getPackage(env,amount),grant=Number(pack?.credits||0),b=Number(u?.credits_balance||0)+grant;
+  await env.DB.prepare("UPDATE users SET credits_balance=?,updated_at=? WHERE id=?").bind(b,Date.now(),userId).run();
+  await addTransaction(env,userId,"purchase",grant,b,null,Number(row.id),null,"payment:"+row.id+":credits");
+  return;
+ }
+ const plan=await getPlan(env,key);if(!plan)return;
+ const exp=Date.now()+Number(plan.duration_days||30)*86400000,grant=Number(plan.included_credits||0),b=Number(u?.credits_balance||0)+grant;
  await env.DB.prepare("UPDATE users SET plan=?,tariff_id=?,credits_balance=?,credits_reset_at=?,updated_at=? WHERE id=?").bind(key,Number(plan.id),b,exp,Date.now(),userId).run();
- await env.DB.prepare("INSERT INTO subscriptions(user_id,plan,provider,stars_amount,status,current_period_start,expires_at,telegram_payment_charge_id,invoice_payload,is_recurring,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)").bind(userId,key,"telegram_stars",row.stars_amount,"active",Date.now(),exp,p.telegram_payment_charge_id,row.invoice_payload,0,Date.now(),Date.now()).run();
+ await addTransaction(env,userId,"grant",grant,b,null,Number(row.id),null,"payment:"+row.id+":plan_grant");
+ await env.DB.prepare("INSERT INTO subscriptions(user_id,plan,provider,stars_amount,status,current_period_start,expires_at,telegram_payment_charge_id,invoice_payload,is_recurring,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
+  .bind(userId,key,"telegram_stars",row.stars_amount,"active",Date.now(),exp,p.telegram_payment_charge_id,row.invoice_payload,0,Date.now(),Date.now()).run();
 }
 async function showPlanDays(env:Bindings,userId:number,chatId:string,jobId:number,msg:Any){const p=await env.DB.prepare("SELECT id FROM content_plans WHERE job_id=? AND user_id=?").bind(jobId,userId).first<Any>();if(!p)return;const u=await userById(env,userId),days=await daysForPlan(env,Number(p.id)),buttons=days.map((d:any,i:number)=>({text:"📅 "+String(d.day??(getLang(u)==="en"?"Day ":"День ")+(i+1)),callback_data:"dayview:"+jobId+":"+i})),rows=[buttons.slice(0,4),buttons.slice(4,7),[{text:getLang(u)==="en"?"↩️ Back":"↩️ Назад",callback_data:"planopen:"+jobId}]];return editMessageText(env,chatId,Number(msg.message_id),getLang(u)==="en"?"📅 Content Plan / Days":"📅 Content Plan / Дни",{inline_keyboard:rows})}
 async function showPlanDay(env:Bindings,userId:number,chatId:string,jobId:number,pos:number,msg:Any){const p=await env.DB.prepare("SELECT id FROM content_plans WHERE job_id=? AND user_id=?").bind(jobId,userId).first<Any>();if(!p)return;const days=await daysForPlan(env,Number(p.id)),d=days[pos];if(!d)return;const u=await userById(env,userId),t=tx(u),b=String(d.format||"").toLowerCase().includes("short"),cost=await getPrice(env,b?"script":"post"),body=getLang(u)==="en"?("📅 "+String(d.day)+" / "+String(d.title)+"\\n\\n🎯 "+String(d.goal)+"\\n📱 "+String(d.format)+"\\n🔥 "+String(d.hook)+"\\n💡 "+String(d.angle)+"\\n🧠 "+String(d.mainThought)+"\\n🎯 "+String(d.cta)+"\\n\\nStatus: "+String(d.status)+"\\n💳 Generation cost: "+cost+" 🔹"):("📅 "+String(d.day)+" / "+String(d.title)+"\\n\\n🎯 "+String(d.goal)+"\\n📱 "+String(d.format)+"\\n🔥 "+String(d.hook)+"\\n💡 "+String(d.angle)+"\\n🧠 "+String(d.mainThought)+"\\n🎯 "+String(d.cta)+"\\n\\nСтатус: "+String(d.status)+"\\n💳 Стоимость генерации: "+cost+" 🔹"),kb={inline_keyboard:[[{text:getLang(u)==="en"?"✏️ Change idea":"✏️ Изменить идею",callback_data:"dayedit:"+jobId+":"+pos}],[{text:getLang(u)==="en"?"🚀 Create":"🚀 Создать",callback_data:"day:"+jobId+":"+pos}],[{text:getLang(u)==="en"?"↩️ Back to plan":"↩️ Назад к плану",callback_data:"planopen:"+jobId}]]};return editMessageText(env,chatId,Number(msg?.message_id),body,kb)}
