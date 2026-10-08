@@ -121,6 +121,14 @@ repSelect:(price:number)=>`♻️ Creator AI / Repurpose
 Теперь выбери, какой контент создать из него.
 
 💳 Стоимость: ${price} 🔹`,
+repurposeDone:`✦ CREATOR AI / REPURPOSE
+
+🚀 Контент готов
+
+Отправляю результаты…`,
+repPartial:`⚠️ Часть результатов не удалось создать.
+Успешные результаты уже доступны.
+Стоимость неудачных результатов возвращена.`,
 settings:`⚙️ Creator AI / Настройки
 
 Здесь можно изменить основные параметры Creator AI.`,
@@ -411,6 +419,14 @@ The material was analyzed.
 Now choose what to create from it.
 
 💳 Cost: ${price} 🔹`,
+repurposeDone:`✦ CREATOR AI / REPURPOSE
+
+🚀 Content ready
+
+Sending the results…`,
+repPartial:`⚠️ Some results could not be created.
+Successful results are already available.
+Failed output costs were refunded.`,
 settings:`⚙️ Creator AI / Settings
 
 Change the main Creator AI settings here.`,
