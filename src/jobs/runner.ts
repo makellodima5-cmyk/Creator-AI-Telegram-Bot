@@ -124,7 +124,8 @@ export function plainResult(t:string,o:any,lang:Lang="ru"){
   return [o.title?String(o.title):"",o.hook?L("🔥 HOOK — 0–3 сек","🔥 HOOK — 0–3 sec")+"\n\n"+String(o.hook):"",scenes,o.cta?L("🎯 CTA","🎯 CTA")+"\n\n"+String(o.cta):"",o.duration?L("⏱️ ≈ "+String(o.duration)+" сек","⏱️ ≈ "+String(o.duration)+" sec"):""].filter(Boolean).join("\n\n");
  }
  if(t==="content_plan"||t==="repurpose_plan"){
-  const days=(o.days??[]).map((d:any)=>String(d.day)+" · "+String(d.format)+"\n"+String(d.title)+"\n"+L("○ Не создано","○ Not created")).join("\n\n");
+  const status=(v:any)=>String(v)==="✅"?L("✅ Создано","✅ Created"):String(v)==="⏳"?L("⏳ Создаётся","⏳ Creating"):String(v)==="❌"?L("❌ Ошибка","❌ Error"):L("○ Не создано","○ Not created");
+  const days=(o.days??[]).map((d:any)=>String(d.day)+" · "+String(d.format)+"\n"+String(d.title)+"\n"+status(d.status)).join("\n\n");
   return [o.topic?L("Тема: ","Topic: ")+String(o.topic):"",o.goal?L("Цель: ","Goal: ")+String(o.goal):"",days].filter(Boolean).join("\n\n");
  }
  if(t==="style_profile")return L("Профиль стиля сохранён.","Style profile saved.");
@@ -132,10 +133,10 @@ export function plainResult(t:string,o:any,lang:Lang="ru"){
 }
 export function resultMarkup(t:string,o:any,lang:Lang="ru"){
  const L=(ru:string,en:string)=>lang==="en"?en:ru;
- if(t==="post")return L("✦ CREATOR AI / POST MAKER\n\n🚀 Пост готов","✦ CREATOR AI / POST MAKER\n\n🚀 Post ready")+"\n\n"+String(o.title??"")+"\n\n"+String(o.body??o.content??"");
+ if(t==="post"||t==="post_edit"||t==="post_variant")return L("✦ CREATOR AI / POST MAKER\n\n🚀 Пост готов","✦ CREATOR AI / POST MAKER\n\n🚀 Post ready")+"\n\n"+String(o.title??"")+"\n\n"+String(o.body??o.content??"");
  if(t==="repurpose_telegram")return L("✦ CREATOR AI / POST MAKER\n\n🚀 Пост готов","✦ CREATOR AI / POST MAKER\n\n🚀 Post ready")+"\n\n"+String(o.title??"")+"\n\n"+String(o.body??o.content??"");
  if(t==="repurpose_instagram")return ["📱 CREATOR AI / INSTAGRAM",String(o.hook??o.title??"").trim(),String(o.body??o.content??"").trim(),o.cta?L("🎯 CTA","🎯 CTA")+"\n\n"+String(o.cta):"",Array.isArray(o.hashtags)&&o.hashtags.length?o.hashtags.map((x:any)=>String(x)).join(" "):""].filter(Boolean).join("\n\n");
- if(t==="script")return "🎬 CREATOR AI / SCRIPT MAKER\n\n"+L("🚀 Сценарий готов","🚀 Script ready")+"\n\n"+plainResult(t,o,lang);
+ if(t==="script"||t==="script_edit"||t==="script_variant")return "🎬 CREATOR AI / SCRIPT MAKER\n\n"+L("🚀 Сценарий готов","🚀 Script ready")+"\n\n"+plainResult("script",o,lang);
  if(t==="repurpose_tiktok")return "🎬 CREATOR AI / TIKTOK\n\n"+L("🚀 Сценарий готов","🚀 Script ready")+"\n\n"+plainResult(t,o,lang);
  if(t==="repurpose_youtube")return "▶️ CREATOR AI / YOUTUBE SHORTS\n\n"+L("🚀 Сценарий готов","🚀 Script ready")+"\n\n"+plainResult(t,o,lang);
  if(t==="repurpose_hooks")return "🔥 CREATOR AI / 5 HOOK\n\n"+plainResult(t,o,lang);
