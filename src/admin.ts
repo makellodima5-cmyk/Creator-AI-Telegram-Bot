@@ -20,9 +20,9 @@ export async function ensureAdminSeed(env:Bindings){
   if(u){await env.DB.prepare("INSERT OR IGNORE INTO admin_users(user_id,created_at) VALUES(?,?)").bind(Number(u.id),n).run();await env.DB.prepare("UPDATE users SET role='admin',updated_at=? WHERE id=?").bind(n,Number(u.id)).run();}
  }
 }
-export async function openAdmin(env:Bindings,chatId:string,lang:Lang="ru"){return sendMessage(env,chatId,tr(lang,"👨‍💻 Админ-панель","👨‍💻 Admin Panel"),adminMenu(lang));}
+export async function openAdmin(env:Bindings,chatId:string,lang:Lang="ru"){return sendMessage(env,chatId,"👨‍💻 Admin Panel",adminMenu(lang));}
 
-const priceKeys=["post","script","content_plan","post_edit","post_variant","script_edit","script_variant","content_plan_variant","style_profile"];
+const priceKeys=["post","script","content_plan","post_edit","post_variant","script_edit","script_variant","content_plan_edit","content_plan_variant","style_profile","edit","other_variant"];
 const repKeys=["repurpose_telegram","repurpose_instagram","repurpose_tiktok","repurpose_youtube","repurpose_hooks","repurpose_cta","repurpose_plan"];
 
 async function claimAudit(env:Bindings,adminId:number,action:string,targetUserId:number|null,entityType:string,entityId:number|null,oldValue:any,newValue:any,idempotencyKey:string){
@@ -53,7 +53,7 @@ export async function setIncludedCredits(env:Bindings,key:string,credits:number,
 export async function adminAction(env:Bindings,userId:number,chatId:string,data:string,msg:any,updateId=0){
  const u=await env.DB.prepare("SELECT * FROM users WHERE id=?").bind(userId).first<A>();if(!u||!(await isAdmin(env,String(u.telegram_id||""))))return;
  const m=Number(msg?.message_id||0),lang:Lang=String(u.language)==="en"?"en":"ru",back=tr(lang,"↩️ Назад","↩️ Back");
- if(data==="admin:menu")return m?editMessageText(env,chatId,m,tr(lang,"👨‍💻 Админ-панель","👨‍💻 Admin Panel"),adminMenu(lang)):openAdmin(env,chatId,lang);
+ if(data==="admin:menu")return m?editMessageText(env,chatId,m,"👨‍💻 Admin Panel",adminMenu(lang)):openAdmin(env,chatId,lang);
  if(data==="admin:stats"||data.startsWith("admin:stats:")){
   const period=data.endsWith(":7d")?"7d":data.endsWith(":30d")?"30d":"today",since=now()-(period==="7d"?7*86400000:period==="30d"?30*86400000:86400000);
   const count=async(sql:string)=>Number((await env.DB.prepare(sql).bind(since).first<A>())?.c??0);
