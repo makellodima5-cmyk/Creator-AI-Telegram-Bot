@@ -86,8 +86,8 @@ export async function adminAction(env:Bindings,userId:number,chatId:string,data:
  if(data.startsWith("admin:user:"))return userCard(env,chatId,m,Number(data.slice(10)),lang);
  if(data.startsWith("admin:grant_tariff:"))return grantTariffMenu(env,chatId,m,Number(data.slice(18)),lang);
  if(data.startsWith("admin:grant_credits:"))return grantCreditsMenu(env,chatId,m,Number(data.slice(19)),lang);
- if(data.startsWith("admin:grant_tariff_apply:")){const p=data.split(":");return grantTariff(env,userId,chatId,Number(p[3]),p[4],updateId);}
- if(data.startsWith("admin:grant_credits_apply:")){const p=data.split(":");return grantCredits(env,userId,chatId,Number(p[3]),Number(p[4]),updateId);}
+ if(data.startsWith("admin:grant_tariff_apply:")){const p=data.split(":");return grantTariff(env,userId,chatId,Number(p[3]),p[4],updateId,lang);}
+ if(data.startsWith("admin:grant_credits_apply:")){const p=data.split(":");return grantCredits(env,userId,chatId,Number(p[3]),Number(p[4]),updateId,lang);}
  if(data.startsWith("admin:grant_credits_other:")){const p=data.split(":");await saveAdminInput(env,userId,"grant_credits_other",p[3]);return editMessageText(env,chatId,m,tr(lang,"Введи количество кредитов числом.","Enter credit amount:"),adminBack(lang));}
 }
 async function planButtons(env:Bindings,key:string){return[{text:key==="creator"?"⚡ CREATOR":"🚀 PRO",callback_data:"admin:tariff:"+key},{text:Number((await env.DB.prepare("SELECT stars_price FROM pricing WHERE key=?").bind(key).first<A>())?.stars_price??0)+" ⭐",callback_data:"admin:tariff:"+key}]}
