@@ -137,6 +137,14 @@ ID: ${id}
 language:`🌐 CREATOR AI / ЯЗЫК
 
 Выбери язык интерфейса и общения с Creator AI.`,
+languageAppliedRu:`🌐 CREATOR AI / ЯЗЫК
+
+Русский теперь активен.`,
+languageAppliedEn:`🌐 Creator AI / Language
+
+Choose the language for the Creator AI interface and AI conversations.
+
+English is now active.`,
 notifications:(enabled:boolean)=>`🔔 CREATOR AI / УВЕДОМЛЕНИЯ
 
 Будь в курсе новых возможностей Creator AI.
@@ -291,7 +299,7 @@ planEditConfig:(price:number)=>`📅 CREATOR AI / CONTENT PLAN
 🎯 Цель
 📱 Площадка
 🎨 Стиль`,
-processingSteps:(type:string)=>type==="post"?["🧠 Анализирую материал…","🔎 Выделяю главное…","✍️ Адаптирую контент…","✨ Финальные штрихи…"]:type==="script"?["🧠 Анализирую идею…","🔥 Собираю сильный Hook…","✍️ Пишу сценарий…","✨ Финальные штрихи…"]:type==="content_plan"?["🧠 Анализирую тему…","🎯 Определяю цели контента…","💡 Придумываю идеи на неделю…","✨ Формирую контент-план…"]:["🧠 Анализирую материал…","🔎 Выделяю главное…","✍️ Адаптирую контент…","✨ Финальные штрихи…"]
+processingSteps:(type:string)=>type==="post"?["🧠 Анализирую твою идею…","🔥 Собираю сильный Hook…","✍️ Пишу пост…","✨ Финальные штрихи…"]:type==="script"?["🧠 Анализирую твою идею…","🔥 Собираю сильный Hook…","✍️ Пишу сценарий…","✨ Финальные штрихи…"]:type==="content_plan"?["🧠 Анализирую твою тему…","🎯 Определяю цели контента…","💡 Придумываю идеи на неделю…","✨ Формирую контент-план…","🚀 Почти готово…"]:["🧠 Анализирую материал…","🔎 Выделяю главное…","✍️ Адаптирую контент…","✨ Финальные штрихи…"]
 };
 
 const enBase={
@@ -418,7 +426,15 @@ ID: ${id}
 📅 Subscription until: ${date}`,
 language:`🌐 CREATOR AI / LANGUAGE
 
-Choose the language for the Creator AI interface and conversations.`,
+Choose the language for the Creator AI interface and AI conversations.`,
+languageAppliedRu:`🌐 CREATOR AI / ЯЗЫК
+
+Русский теперь активен.`,
+languageAppliedEn:`🌐 Creator AI / Language
+
+Choose the language for the Creator AI interface and AI conversations.
+
+English is now active.`,
 notifications:(enabled:boolean)=>`🔔 CREATOR AI / NOTIFICATIONS
 
 Stay up to date with new Creator AI features.
@@ -571,7 +587,7 @@ Change the content plan parameters.
 🎯 Goal
 📱 Platform
 🎨 Style`,
-processingSteps:(type:string)=>type==="post"?["🧠 Analyzing the material…","🔎 Finding the key points…","✍️ Adapting the content…","✨ Final touches…"]:type==="script"?["🧠 Analyzing the idea…","🔥 Building the Hook…","✍️ Writing the script…","✨ Final touches…"]:["🧠 Analyzing the topic…","🎯 Defining content goals…","💡 Creating ideas for the week…","✨ Forming the content plan…"]
+processingSteps:(type:string)=>type==="post"?["🧠 Analyzing your idea…","🔥 Building a strong Hook…","✍️ Writing the post…","✨ Final touches…"]:type==="script"?["🧠 Analyzing your idea…","🔥 Building a strong Hook…","✍️ Writing the script…","✨ Final touches…"]:type==="content_plan"?["🧠 Analyzing your topic…","🎯 Defining content goals…","💡 Creating ideas for the week…","✨ Forming the content plan…","🚀 Almost ready…"]:["🧠 Analyzing the material…","🔎 Finding the key points…","✍️ Adapting the content…","✨ Final touches…"]
 };
 
 export const copyFor=(lang:Lang)=>lang==="en"?enBase:ruBase;
