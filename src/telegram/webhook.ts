@@ -103,8 +103,19 @@ async function configOptions(env:Bindings,userId:number,chatId:string,data:strin
 "cfg:plan:goal":{items:[["📈 Рост","growth"],["💰 Продажи","sales"],["❤️ Вовлечение","engagement"],["🧠 Экспертность","expertise"]].map(x=>({text:x[0],data:"sel:"+x[1]})),back:"cfgback:plan"},
 "cfg:plan:platform":{items:[["📱 Telegram","telegram"],["📸 Instagram","instagram"],["🎵 TikTok","tiktok"],["▶️ YouTube","youtube"]].map(x=>({text:x[0],data:"sel:"+x[1]})),back:"cfgback:plan"},
 "cfg:plan:style":{items:[["💼 Экспертный","expert"],["😎 Разговорный","conversational"],["📰 Новостной","news"],["💰 Продающий","sales"]].map(x=>({text:x[0],data:"sel:"+x[1]})),back:"cfgback:plan"}};const x=ruItems[data];if(!x)return;const items=lang==="en"?x.items.map(i=>({data:i.data,text:langTextVal(i.text)})):x.items;return editMessageText(env,chatId,Number(msg.message_id),lang==="en"?"Choose a parameter:":"Выбери параметр:",{inline_keyboard:[...Array.from({length:Math.ceil(items.length/2)},(_,i)=>items.slice(i*2,i*2+2).map(z=>({text:z.text,callback_data:z.data}))),[{text:lang==="en"?"↩️ Back":"↩️ Назад",callback_data:x.back}]]})}
-const langTextVal=(s:string)=>({"Экспертный":"Expert","Провокационный":"Provocative","Разговорный":"Conversational","Новостной":"News","Продающий":"Sales","Короткая":"Short","Средняя":"Medium","Длинная":"Long","Экспертная":"Expert","Разговорная":"Conversational","Динамичная":"Dynamic","сек":"sec","Рост":"Growth","Продажи":"Sales","Вовлечение":"Engagement","Экспертность":"Expertise"} as any)[s.replace(/.*?\b/,"").trim()]??s;
-const langText=(t:any,ruText:string,enText:string)=>t===copyFor("en")?enText:ruText;
+const langTextVal=(s:string)=>{
+ const map:Record<string,string>={
+  "📱 Telegram":"📱 Telegram","📸 Instagram":"📸 Instagram","🎵 TikTok":"🎵 TikTok","▶️ YouTube":"▶️ YouTube",
+  "💼 Экспертный":"💼 Expert","🔥 Провокационный":"🔥 Provocative","😎 Разговорный":"😎 Conversational","📰 Новостной":"📰 News","💰 Продающий":"💰 Sales",
+  "⚡ Короткая":"⚡ Short","📝 Средняя":"📝 Medium","📚 Длинная":"📚 Long",
+  "🎵 TikTok":"🎵 TikTok","📸 Reels":"📸 Reels","▶️ YouTube Shorts":"▶️ YouTube Shorts",
+  "💼 Экспертная":"💼 Expert","😎 Разговорная":"😎 Conversational","⚡ Динамичная":"⚡ Dynamic",
+  "15 сек":"15 sec","30 сек":"30 sec","45 сек":"45 sec","60 сек":"60 sec",
+  "📈 Рост":"📈 Growth","💰 Продажи":"💰 Sales","❤️ Вовлечение":"❤️ Engagement","🧠 Экспертность":"🧠 Expertise"
+ };
+ return map[s]??s.replace(/(🎨|📏|🎯|📱|💼|🔥|😎|📰|💰|⚡|📝|📚|❤️|🧠)\s*/,"");
+};
+const langText=(t:any,ruText:string,enText:string)=>String(t?.language)==="en"?enText:ruText;
 async function renderConfig(env:Bindings,userId:number,chatId:string,flow:string,msg:Any){const s=await sessionByUser(env,userId),u=await userById(env,userId),t=tx(u),d=parse(s?.draft_json),p=await getPrice(env,flow==="plan"?"content_plan":flow),body=flow==="post"?t.postConfig(p,d):flow==="script"?t.scriptConfig(p,d):t.planConfig(p,d),kb=flow==="post"?postConfig(d as any):flow==="script"?scriptConfig(d as any):planConfig(d as any);return editMessageText(env,chatId,Number(msg.message_id),body,kb)}
 async function selectParam(env:Bindings,userId:number,chatId:string,key:string,msg:Any){const s=await sessionByUser(env,userId),d=parse(s?.draft_json);if(!s)return;if(s.flow==="post"){if(["telegram","instagram","tiktok","youtube"].includes(key))d.platform=key;else if(["expert","provocative","conversational","news","sales"].includes(key))d.style=key;else d.length=key;return renderSelected(env,userId,chatId,"post",d,msg)}if(s.flow==="script"){if(["tiktok","instagram","youtube"].includes(key))d.platform=key;else if(["expert","conversational","dynamic","sales"].includes(key))d.style=key;else d.duration=key;return renderSelected(env,userId,chatId,"script",d,msg)}if(s.flow==="plan"){if(["growth","sales","engagement","expertise"].includes(key))d.goal=key;else if(["telegram","instagram","tiktok","youtube"].includes(key))d.platform=key;else d.style=key;return renderSelected(env,userId,chatId,"plan",d,msg)}}
 async function renderSelected(env:Bindings,userId:number,chatId:string,flow:string,d:Any,msg:Any){await saveSession(env,userId,flow,"config",d,Number(msg.message_id),chatId);return renderConfig(env,userId,chatId,flow,msg)}
