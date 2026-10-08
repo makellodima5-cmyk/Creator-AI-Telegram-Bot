@@ -108,12 +108,12 @@ const langTextVal=(s:string)=>{
   "📱 Telegram":"📱 Telegram","📸 Instagram":"📸 Instagram","🎵 TikTok":"🎵 TikTok","▶️ YouTube":"▶️ YouTube",
   "💼 Экспертный":"💼 Expert","🔥 Провокационный":"🔥 Provocative","😎 Разговорный":"😎 Conversational","📰 Новостной":"📰 News","💰 Продающий":"💰 Sales",
   "⚡ Короткая":"⚡ Short","📝 Средняя":"📝 Medium","📚 Длинная":"📚 Long",
-  "🎵 TikTok":"🎵 TikTok","📸 Reels":"📸 Reels","▶️ YouTube Shorts":"▶️ YouTube Shorts",
-  "💼 Экспертная":"💼 Expert","😎 Разговорная":"😎 Conversational","⚡ Динамичная":"⚡ Dynamic",
+  "📸 Reels":"📸 Reels","▶️ YouTube Shorts":"▶️ YouTube Shorts",
+  "💼 Экспертная":"💼 Expert","😎 Разговорная":"😎 Conversational","⚡ Динамичная":"⚡ Dynamic","💰 Продающая":"💰 Sales",
   "15 сек":"15 sec","30 сек":"30 sec","45 сек":"45 sec","60 сек":"60 sec",
   "📈 Рост":"📈 Growth","💰 Продажи":"💰 Sales","❤️ Вовлечение":"❤️ Engagement","🧠 Экспертность":"🧠 Expertise"
  };
- return map[s]??s.replace(/(🎨|📏|🎯|📱|💼|🔥|😎|📰|💰|⚡|📝|📚|❤️|🧠)\s*/,"");
+ return map[s]??s;
 };
 const langText=(t:any,ruText:string,enText:string)=>String(t?.language)==="en"?enText:ruText;
 async function renderConfig(env:Bindings,userId:number,chatId:string,flow:string,msg:Any){const s=await sessionByUser(env,userId),u=await userById(env,userId),t=tx(u),d=parse(s?.draft_json),p=await getPrice(env,flow==="plan"?"content_plan":flow),body=flow==="post"?t.postConfig(p,d):flow==="script"?t.scriptConfig(p,d):t.planConfig(p,d),kb=flow==="post"?postConfig(d as any):flow==="script"?scriptConfig(d as any):planConfig(d as any);return editMessageText(env,chatId,Number(msg.message_id),body,kb)}
