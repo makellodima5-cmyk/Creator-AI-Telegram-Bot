@@ -35,7 +35,7 @@ export const optionKeyboard=(options:{text:string;data:string}[],back:string)=>{
 export const repurposeTargets=(selectedOutputs:string[],_price:number)=>{
   const labels:[string,string][]=[
     ["telegram","📱 Telegram"],["instagram","📸 Instagram"],["tiktok","🎵 TikTok"],["youtube","▶️ YouTube Shorts"],
-    ["hooks","🔥 5 Hooks"],["cta","🎯 CTA"],["plan","📅 Content Plan"]
+    ["hooks","🔥 5 Hook"],["cta","🎯 3 CTA"],["plan","📅 Контент на неделю"]
   ];
   return{inline_keyboard:[
     labels.slice(0,4).map(([k,l])=>mark(selectedOutputs.includes(k),l,"target:"+k)),
