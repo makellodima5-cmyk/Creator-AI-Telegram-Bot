@@ -31,23 +31,23 @@ async function claimAudit(env:Bindings,adminId:number,action:string,targetUserId
 }
 export async function setSetting(env:Bindings,key:string,value:string,adminId:number,idempotencyKey="setting:"+adminId+":"+key+":"+value){
  const old=await env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(key).first<A>();
- if(!(await claimAudit(env,adminId,"setting.update",null,"settings",null,old,{key,value},idempotencyKey))return true;
+ if(!(await claimAudit(env,adminId,"setting.update",null,"settings",null,old,{key,value},idempotencyKey)))return true;
  await env.DB.prepare("INSERT INTO settings(key,value,updated_at,updated_by) VALUES(?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at,updated_by=excluded.updated_by").bind(key,value,now(),adminId).run();
  return true;
 }
 export async function setPrice(env:Bindings,key:string,credits:number,adminId:number,idempotencyKey="price:"+adminId+":"+key+":"+credits){
  if(!Number.isFinite(credits)||credits<0)return false;const old=await env.DB.prepare("SELECT * FROM pricing WHERE key=?").bind(key).first<A>();if(!old)return false;
- if(!(await claimAudit(env,adminId,"pricing.update",null,"pricing",Number(old.id),old,{key,credits_cost:Math.floor(credits)},idempotencyKey))return true;
+ if(!(await claimAudit(env,adminId,"pricing.update",null,"pricing",Number(old.id),old,{key,credits_cost:Math.floor(credits)},idempotencyKey)))return true;
  const up=await env.DB.prepare("UPDATE pricing SET credits_cost=?,updated_at=?,updated_by=? WHERE key=?").bind(Math.floor(credits),now(),adminId,key).run();return up.meta.changes===1;
 }
 export async function setStarsPrice(env:Bindings,key:string,stars:number,adminId:number,idempotencyKey="stars:"+adminId+":"+key+":"+stars){
  if(!Number.isFinite(stars)||stars<0)return false;const old=await env.DB.prepare("SELECT * FROM pricing WHERE key=?").bind(key).first<A>();if(!old)return false;
- if(!(await claimAudit(env,adminId,"pricing.stars_update",null,"pricing",Number(old.id),old,{key,stars_price:Math.floor(stars)},idempotencyKey))return true;
+ if(!(await claimAudit(env,adminId,"pricing.stars_update",null,"pricing",Number(old.id),old,{key,stars_price:Math.floor(stars)},idempotencyKey)))return true;
  const up=await env.DB.prepare("UPDATE pricing SET stars_price=?,updated_at=?,updated_by=? WHERE key=?").bind(Math.floor(stars),now(),adminId,key).run();return up.meta.changes===1;
 }
 export async function setIncludedCredits(env:Bindings,key:string,credits:number,adminId:number,idempotencyKey="included:"+adminId+":"+key+":"+credits){
  if(!Number.isFinite(credits)||credits<0)return false;const old=await env.DB.prepare("SELECT * FROM pricing WHERE key=?").bind(key).first<A>();if(!old)return false;
- if(!(await claimAudit(env,adminId,"pricing.credits_update",null,"pricing",Number(old.id),old,{key,included_credits:Math.floor(credits)},idempotencyKey))return true;
+ if(!(await claimAudit(env,adminId,"pricing.credits_update",null,"pricing",Number(old.id),old,{key,included_credits:Math.floor(credits)},idempotencyKey)))return true;
  const up=await env.DB.prepare("UPDATE pricing SET included_credits=?,updated_at=?,updated_by=? WHERE key=?").bind(Math.floor(credits),now(),adminId,key).run();return up.meta.changes===1;
 }
 export async function adminAction(env:Bindings,userId:number,chatId:string,data:string,msg:any,updateId=0){
