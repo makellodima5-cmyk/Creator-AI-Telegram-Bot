@@ -39,52 +39,20 @@ async function enqueueDelivery(env:Bindings,resultId:number,userId:number,positi
 async function finishJob(env:Bindings,job:any){await env.DB.prepare("UPDATE users SET generation_lock_job_id=NULL,updated_at=? WHERE id=? AND generation_lock_job_id=?").bind(Date.now(),job.user_id,job.id).run();await env.DB.prepare("UPDATE user_sessions SET active_job_id=NULL WHERE user_id=? AND active_job_id=?").bind(job.user_id,job.id).run();}
 async function failJob(env:Bindings,job:any,reason:string){const reserved=Number(job.credits_reserved??0);if(reserved)await refundCredits(env,job.user_id,reserved,job.id,"job:"+job.id+":refund");const d=parse(job.input_json);if(d.contentPlanDayId)await env.DB.prepare("UPDATE content_plan_days SET status='❌',updated_at=? WHERE id=?").bind(Date.now(),Number(d.contentPlanDayId)).run();const t=copyFor(await userLang(env,job.user_id));await env.DB.prepare("UPDATE jobs SET status='failed',credits_reserved=0,error_code='AI_ERROR',error_message=?,completed_at=?,updated_at=? WHERE id=?").bind(reason.slice(0,500),Date.now(),Date.now(),job.id).run();await finishJob(env,job);if(job.telegram_chat_id&&job.telegram_message_id)await editMessageText(env,job.telegram_chat_id,Number(job.telegram_message_id),t.aiError,errorKeyboard(job.id)).catch(()=>{});}
 async function repurposeTotal(env:Bindings,a:string[]){let n=0;for(const x of a)n+=await getPrice(env,"repurpose_"+x);return n;}
-export function plainResult(t:string,o:any){if(t==="repurpose_hooks")return(o.hooks??[]).map((x:string,i:number)=>(i+1)+". "+x).join("
-");if(t==="repurpose_cta")return(o.ctas??[]).map((x:string,i:number)=>(i+1)+". "+x).join("
-");if(["script","repurpose_tiktok","repurpose_youtube"].includes(t))return[o.title?"🎬 "+o.title:"",o.hook?"🔥 Hook: "+o.hook:"",(o.scenes??[]).map((s:any)=>String(s.time)+"
-🎙 "+String(s.spoken)+"
-🎥 "+String(s.visual)+"
-🖥 "+String(s.onScreen)).join("
-
-"),o.cta?"🎯 CTA: "+o.cta:""].filter(Boolean).join("
-
-");if(["content_plan","repurpose_plan"].includes(t))return(o.days??[]).map((d:any)=>String(d.day)+" — "+String(d.title)+"
-"+String(d.goal)+"
-"+String(d.format)+"
-"+String(d.hook)+"
-"+String(d.angle)+"
-"+String(d.mainThought)+"
-"+String(d.cta)).join("
-
-");if(t==="style_profile")return"Профиль стиля сохранён.";return String(o.body??o.content??o.title??"").trim();}
-export function resultMarkup(t:string,o:any){if(t==="post"||t==="repurpose_telegram")return"✦ CREATOR AI / POST MAKER
-
-🚀 Пост готов
-
-"+String(o.title??"")+"
-
-"+String(o.body??o.content??"");if(t==="repurpose_instagram")return"✦ CREATOR AI / INSTAGRAM
-
-🚀 Caption готов
-
-"+String(o.body??o.content??"");if(["script","repurpose_tiktok","repurpose_youtube"].includes(t))return"🎬 CREATOR AI / SCRIPT MAKER
-
-🚀 Сценарий готов
-
-"+plainResult(t,o);if(t==="repurpose_hooks")return"✦ CREATOR AI / 5 HOOK
-
-🚀 Hook готовы
-
-"+plainResult(t,o);if(t==="repurpose_cta")return"✦ CREATOR AI / 3 CTA
-
-🚀 CTA готовы
-
-"+plainResult(t,o);if(t==="style_profile")return"✦ Creator AI / My Style
-
-✨ Стиль проанализирован
-
-Профиль сохранён и будет использоваться в поддерживаемых текстовых генерациях.";return"📅 CREATOR AI / CONTENT PLAN
-
-🚀 Контент-план готов
-
-"+plainResult(t,o);}
+export function plainResult(t:string,o:any){
+ if(t==="repurpose_hooks")return (o.hooks??[]).map((x:string,i:number)=>(i+1)+". "+x).join("\n");
+ if(t==="repurpose_cta")return (o.ctas??[]).map((x:string,i:number)=>(i+1)+". "+x).join("\n");
+ if(["script","repurpose_tiktok","repurpose_youtube"].includes(t))return [o.title?"🎬 "+o.title:"",o.hook?"🔥 Hook: "+o.hook:"",(o.scenes??[]).map((s:any)=>String(s.time)+"\n🎙 "+String(s.spoken)+"\n🎥 "+String(s.visual)+"\n🖥 "+String(s.onScreen)).join("\n\n"),o.cta?"🎯 CTA: "+o.cta:""].filter(Boolean).join("\n\n");
+ if(["content_plan","repurpose_plan"].includes(t))return (o.days??[]).map((d:any)=>String(d.day)+" — "+String(d.title)+"\n"+String(d.goal)+"\n"+String(d.format)+"\n"+String(d.hook)+"\n"+String(d.angle)+"\n"+String(d.mainThought)+"\n"+String(d.cta)).join("\n\n");
+ if(t==="style_profile")return "Профиль стиля сохранён.";
+ return String(o.body??o.content??o.title??"").trim();
+}
+export function resultMarkup(t:string,o:any){
+ if(t==="post"||t==="repurpose_telegram")return "✦ CREATOR AI / POST MAKER\n\n🚀 Пост готов\n\n"+String(o.title??"")+"\n\n"+String(o.body??o.content??"");
+ if(t==="repurpose_instagram")return "✦ CREATOR AI / INSTAGRAM\n\n🚀 Caption готов\n\n"+String(o.body??o.content??"");
+ if(["script","repurpose_tiktok","repurpose_youtube"].includes(t))return "🎬 CREATOR AI / SCRIPT MAKER\n\n🚀 Сценарий готов\n\n"+plainResult(t,o);
+ if(t==="repurpose_hooks")return "✦ CREATOR AI / 5 HOOK\n\n🚀 Hook готовы\n\n"+plainResult(t,o);
+ if(t==="repurpose_cta")return "✦ CREATOR AI / 3 CTA\n\n🚀 CTA готовы\n\n"+plainResult(t,o);
+ if(t==="style_profile")return "✦ Creator AI / My Style\n\n✨ Стиль проанализирован\n\nПрофиль сохранён и будет использоваться в поддерживаемых текстовых генерациях.";
+ return "📅 CREATOR AI / CONTENT PLAN\n\n🚀 Контент-план готов\n\n"+plainResult(t,o);
+}
