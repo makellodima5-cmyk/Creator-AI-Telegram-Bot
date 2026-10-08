@@ -14,8 +14,26 @@ async function profile(env:Bindings,userId:number){return(await env.DB.prepare("
 async function userLang(env:Bindings,userId:number):Promise<Lang>{const u=await env.DB.prepare("SELECT language FROM users WHERE id=?").bind(userId).first<any>();return String(u?.language)==="en"?"en":"ru";}
 async function step(env:Bindings,job:any,index:number,lang:Lang){if(!job.telegram_chat_id||!job.telegram_message_id)return;const t=copyFor(lang),s=t.processingSteps(job.type==="content_plan"?"content_plan":job.type==="script"?"script":job.type==="post"?"post":"repurpose");if(s[index])await editMessageText(env,String(job.telegram_chat_id),Number(job.telegram_message_id),s[index]).catch(()=>{});}
 async function startProgress(env:Bindings,job:any,lang:Lang){await step(env,job,0,lang);await new Promise(r=>setTimeout(r,250));await step(env,job,1,lang);}
-export async function runJob(env:Bindings,id:number,resultId?:number){if(resultId)return runRepurposeResult(env,id,resultId);const claim=await env.DB.prepare("UPDATE jobs SET status='processing',started_at=COALESCE(started_at,?),attempts=attempts+1,updated_at=? WHERE id=? AND status='queued'").bind(Date.now(),Date.now(),id).run();if(claim.meta.changes!==1)return;const job=await env.DB.prepare("SELECT * FROM jobs WHERE id=?").bind(id).first<any>();if(!job)return;const lang=await userLang(env,job.user_id);try{const d=parse(job.input_json);if((job.type==="repurpose"&&d.phase==="analysis")||job.type==="source_analysis")return sourceAnalysis(env,job,lang);if(job.type==="style_profile")return styleProfile(env,job,d,lang);if(job.type==="repurpose")return initializeRepurpose(env,job,d,lang);if(job.type==="repurpose_result")return standaloneResult(env,job,d,lang);if(["post","script","content_plan"].includes(String(job.type)))return single(env,job,d,String(job.type),lang);return failJob(env,job,"unsupported_job_type",lang);}catch(e){return failJob(env,job,e instanceof Error?e.message:String(e),lang);}}
-async function single(env:Bindings,job:any,d:any,op:string,lang:Lang){
+export async function runJob(env:Bindings,id:number,resultId?:number){
+ if(resultId)return runRepurposeResult(env,id,resultId);
+ const claim=await env.DB.prepare("UPDATE jobs SET status='processing',started_at=COALESCE(started_at,?),attempts=attempts+1,updated_at=? WHERE id=? AND status='queued'").bind(Date.now(),Date.now(),id).run();
+ if(claim.meta.changes!==1)return;
+ const job=await env.DB.prepare("SELECT * FROM jobs WHERE id=?").bind(id).first<any>();if(!job)return;
+ const lang=await userLang(env,job.user_id);
+ try{
+  const d=parse(job.input_json),type=String(job.type);
+  if((type==="repurpose"&&d.phase==="analysis")||type==="source_analysis")return sourceAnalysis(env,job,lang);
+  if(type==="style_profile")return styleProfile(env,job,d,lang);
+  if(type==="repurpose")return initializeRepurpose(env,job,d,lang);
+  if(type==="repurpose_result"||type==="repurpose_edit"||type==="repurpose_variant")return standaloneResult(env,job,d,lang);
+  if(["post","post_edit","post_variant","script","script_edit","script_variant","content_plan","content_plan_edit","content_plan_variant"].includes(type)){
+    const engineOp=type.startsWith("post")?"post":type.startsWith("script")?"script":"content_plan";
+    return single(env,job,d,engineOp,lang,type);
+  }
+  return failJob(env,job,"unsupported_job_type",lang);
+ }catch(e){return failJob(env,job,e instanceof Error?e.message:String(e),lang);}
+}
+async function single(env:Bindings,job:any,d:any,op:string,lang:Lang,resultType=op){
  await startProgress(env,job,lang);
  const ai=await generate<any>(env,op,{operation:op,userInput:String(d.topic??d.userInput??""),parameters:d,source:d.sourceText,analysis:d.analysis,styleProfile:styleApplies(op)?await profile(env,job.user_id):undefined,previousResult:d.previousResult?JSON.stringify(d.previousResult):undefined,language:lang,jobId:job.id},await getSettingNumber(env,"job_max_attempts",3));
  await step(env,job,2,lang);await step(env,job,3,lang);
@@ -26,7 +44,7 @@ async function single(env:Bindings,job:any,d:any,op:string,lang:Lang){
    await env.DB.prepare("UPDATE style_profiles SET is_active=0,updated_at=? WHERE user_id=?").bind(now,job.user_id).run();
    const pr=await env.DB.prepare("INSERT INTO style_profiles(user_id,profile_json,is_active,created_at,updated_at) VALUES(?,?,?,?,?)").bind(job.user_id,JSON.stringify(ai.output),1,now,now).run();profileId=Number(pr.meta.last_row_id);
   }
-  const rr=await env.DB.prepare("INSERT INTO job_results(job_id,user_id,result_type,position,status,content_json,credits_charged,credits_reserved,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(job.id,job.user_id,op,0,"completed",JSON.stringify(ai.output),0,charged,now,now).run();resultId=Number(rr.meta.last_row_id);
+  const rr=await env.DB.prepare("INSERT OR IGNORE INTO job_results(job_id,user_id,result_type,position,status,content_json,credits_charged,credits_reserved,created_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(job.id,job.user_id,resultType,0,"completed",JSON.stringify(ai.output),0,charged,now,now).run();resultId=Number(rr.meta.last_row_id);
   await chargeCredits(env,job.user_id,charged,job.id);
   const up=await env.DB.prepare("UPDATE jobs SET output_json=?,provider=?,model=?,tokens_input=?,tokens_output=?,cost_usd_micros=?,prompt_version=?,credits_charged=?,credits_reserved=0,status='completed',completed_at=?,updated_at=? WHERE id=? AND status='processing'").bind(JSON.stringify(ai.output),ai.provider,ai.model,ai.inputTokens,ai.outputTokens,ai.costUsdMicros??0,ai.promptVersion,charged,now,now,job.id).run();
   if(up.meta.changes!==1)throw new Error("job_not_active");
