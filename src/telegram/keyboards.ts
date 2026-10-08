@@ -14,13 +14,13 @@ export const mainMenu={inline_keyboard:[
 ]};
 
 const labels={
- postPlatform:(v:string,lang:Lang)=>({telegram:tr(lang,"📱 Telegram","📱 Telegram"),instagram:tr(lang,"📸 Instagram","📸 Instagram"),tiktok:tr(lang,"🎵 TikTok","🎵 TikTok"),youtube:tr(lang,"▶️ YouTube","▶️ YouTube")}[v]??tr(lang,"📱 Площадка","📱 Platform")),
- postStyle:(v:string,lang:Lang)=>({expert:tr(lang,"🎨 Экспертный","🎨 Expert"),conversational:tr(lang,"🎨 Разговорный","🎨 Conversational"),news:tr(lang,"🎨 Новостной","🎨 News"),sales:tr(lang,"🎨 Продающий","🎨 Sales")}[v]??tr(lang,"🎨 Стиль","🎨 Style")),
- postLength:(v:string,lang:Lang)=>({short:tr(lang,"📏 Короткий","📏 Short"),medium:tr(lang,"📏 Средний","📏 Medium"),long:tr(lang,"📏 Длинный","📏 Long")}[v]??tr(lang,"📏 Размер","📏 Length")),
- scriptPlatform:(v:string,lang:Lang)=>({tiktok:tr(lang,"📱 TikTok","📱 TikTok"),instagram:tr(lang,"📸 Reels","📸 Reels"),youtube:tr(lang,"▶️ YouTube Shorts","▶️ YouTube Shorts")}[v]??tr(lang,"📱 Формат","📱 Format")),
- scriptStyle:(v:string,lang:Lang)=>({expert:tr(lang,"🎨 Экспертная","🎨 Expert"),conversational:tr(lang,"🎨 Разговорная","🎨 Conversational"),dynamic:tr(lang,"🎨 Динамичная","🎨 Dynamic"),sales:tr(lang,"🎨 Продающая","🎨 Sales")}[v]??tr(lang,"🎨 Стиль","🎨 Style")),
+ postPlatform:(v:string,lang:Lang)=>({telegram:tr(lang,"Telegram","Telegram"),instagram:tr(lang,"Instagram","Instagram"),tiktok:tr(lang,"TikTok","TikTok"),youtube:tr(lang,"YouTube","YouTube")}[v]??tr(lang,"Площадка","Platform")),
+ postStyle:(v:string,lang:Lang)=>({expert:tr(lang,"Экспертный","Expert"),conversational:tr(lang,"Разговорный","Conversational"),news:tr(lang,"Новостной","News"),sales:tr(lang,"Продающий","Sales")}[v]??tr(lang,"Стиль","Style")),
+ postLength:(v:string,lang:Lang)=>({short:tr(lang,"Короткий","Short"),medium:tr(lang,"Средний","Medium"),long:tr(lang,"Длинный","Long")}[v]??tr(lang,"Размер","Length")),
+ scriptPlatform:(v:string,lang:Lang)=>({tiktok:tr(lang,"TikTok","TikTok"),instagram:tr(lang,"Reels","Reels"),youtube:tr(lang,"YouTube Shorts","YouTube Shorts")}[v]??tr(lang,"Формат","Format")),
+ scriptStyle:(v:string,lang:Lang)=>({expert:tr(lang,"Экспертная","Expert"),conversational:tr(lang,"Разговорная","Conversational"),dynamic:tr(lang,"Динамичная","Dynamic"),sales:tr(lang,"Продающая","Sales")}[v]??tr(lang,"Стиль","Style")),
  planGoal:(v:string,lang:Lang)=>({growth:tr(lang,"🎯 Рост","🎯 Growth"),sales:tr(lang,"🎯 Продажи","🎯 Sales"),engagement:tr(lang,"🎯 Вовлечение","🎯 Engagement"),expertise:tr(lang,"🎯 Экспертность","🎯 Expertise")}[v]??tr(lang,"🎯 Цель","🎯 Goal")),
- planPlatform:(v:string,lang:Lang)=>({telegram:"📱 Telegram",instagram:"📸 Instagram",tiktok:"🎵 TikTok",youtube:"▶️ YouTube"}[v]??tr(lang,"📱 Площадка","📱 Platform")),
+ planPlatform:(v:string,lang:Lang)=>({telegram:"Telegram",instagram:"Instagram",tiktok:"TikTok",youtube:"YouTube"}[v]??tr(lang,"Площадка","Platform")),
  planStyle:(v:string,lang:Lang)=>({expert:tr(lang,"🎨 Экспертный","🎨 Expert"),conversational:tr(lang,"🎨 Разговорный","🎨 Conversational"),news:tr(lang,"🎨 Новостной","🎨 News"),sales:tr(lang,"🎨 Продающий","🎨 Sales")}[v]??tr(lang,"🎨 Стиль","🎨 Style"))
 };
 
@@ -35,7 +35,7 @@ export const postConfig=(d:PostDraft,lang:Lang="ru")=>({inline_keyboard:[
 
 export const scriptConfig=(d:ScriptDraft,lang:Lang="ru")=>({inline_keyboard:[
  [b(labels.scriptPlatform(d.platform,lang),"cfg:script:platform"),b(labels.scriptStyle(d.style,lang),"cfg:script:style")],
- [b("⏱️ "+(d.duration?d.duration+(lang==="en"?" sec":" сек"):tr(lang,"Длительность","Duration")),"cfg:script:duration")],
+ [b(d.duration?d.duration+(lang==="en"?" sec":" сек"):tr(lang,"Длительность","Duration"),"cfg:script:duration")],
  [b(tr(lang,"🚀 Создать сценарий","🚀 Create script"),"create"),menuBack(lang)]
 ]});
 
