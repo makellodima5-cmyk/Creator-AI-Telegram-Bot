@@ -37,6 +37,8 @@ async function markDeliveryFailure(env:Bindings,id:number,error:string){
 async function advanceDelivery(env:Bindings,deliveryId:number){
  const d=await env.DB.prepare("SELECT job_results.job_id,job_results.position,job_results.user_id,jobs.telegram_chat_id FROM deliveries JOIN job_results ON job_results.id=deliveries.result_id JOIN jobs ON jobs.id=job_results.job_id WHERE deliveries.id=?").bind(deliveryId).first<any>();if(!d)return;
  const next=await env.DB.prepare("SELECT id,position FROM job_results WHERE job_id=? AND position>? ORDER BY position LIMIT 1").bind(Number(d.job_id),Number(d.position)).first<any>();if(!next)return;
- const row=await env.DB.prepare("INSERT OR IGNORE INTO deliveries(result_id,user_id,position,chat_id,status,created_at) VALUES(?,?,?,?,?,?)").bind(Number(next.id),Number(d.user_id),Number(next.position),String(d.telegram_chat_id??""),"queued",Date.now()).run();if(row.meta.changes!==1)return;
- await env.DELIVERY_QUEUE.send({deliveryId:Number(row.meta.last_row_id)}).catch(async()=>{await env.DB.prepare("UPDATE deliveries SET next_retry_at=?,last_error=? WHERE id=? AND status='queued'").bind(Date.now()+60000,"QUEUE_ERROR",Number(row.meta.last_row_id)).run()});
+ await env.DB.prepare("INSERT OR IGNORE INTO deliveries(result_id,user_id,position,chat_id,status,created_at) VALUES(?,?,?,?,?,?)").bind(Number(next.id),Number(d.user_id),Number(next.position),String(d.telegram_chat_id??""),"queued",Date.now()).run();
+ const actual=await env.DB.prepare("SELECT id,status FROM deliveries WHERE result_id=?").bind(Number(next.id)).first<any>();if(!actual||actual.status==="sent")return;
+ const deliveryId=Number(actual.id);
+ await env.DELIVERY_QUEUE.send({deliveryId}).catch(async()=>{await env.DB.prepare("UPDATE deliveries SET next_retry_at=?,last_error=? WHERE id=? AND status='queued'").bind(Date.now()+60000,"QUEUE_ERROR",deliveryId).run()});
 }
