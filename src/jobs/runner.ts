@@ -1,6 +1,7 @@
 import type{Bindings}from"../env";
 import{generate}from"../ai/engine";
 import{getSettingNumber}from"../ai/router";
+import{getPrice}from"../config";
 import{copyFor}from"../text";
 import{editMessageText,sendMessage}from"../telegram/api";
 import{chargeCredits,refundCredits}from"../billing/credits";
