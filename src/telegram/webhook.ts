@@ -86,7 +86,7 @@ export async function handleWebhook(env:Bindings,update:unknown){
 }
 async function paymentOwner(env:Bindings,payload:string){const r=await env.DB.prepare("SELECT user_id FROM payments WHERE invoice_payload=?").bind(payload).first<Any>();return r?.user_id?Number(r.user_id):null}
 async function handleText(env:Bindings,userId:number,chatId:string,value:string,messageId:number,updateId:number){
- const s=await sessionByUser(env,userId);if(!s)return false;const user=await userById(env,userId),t=tx(user),v=value.trim(),d=parse(s.draft_json);if(s.flow==="admin")return applyAdminValue(env,userId,chatId,v);if(!v)return true;
+ const s=await sessionByUser(env,userId);if(!s)return false;const user=await userById(env,userId),t=tx(user),v=value.trim(),d=parse(s.draft_json);if(s.flow==="admin")return applyAdminValue(env,userId,chatId,v,updateId);if(!v)return true;
  if(s.flow==="style"){
   const a=Array.isArray(d.examples)?d.examples:[];if(a.length>=20)return true;a.push(v.slice(0,4000));
   await saveSession(env,userId,"style","examples",{examples:a},Number(s.working_message_id),chatId,14400000,null);
@@ -206,7 +206,7 @@ async function openMain(env:Bindings,userId:number,chatId:string,msg?:Any){
 async function openFeature(env:Bindings,userId:number,chatId:string,flow:string,msg?:Any){
  const u=await userById(env,userId),t=tx(u);
  const d=flow==="post"?{topic:"",platform:"telegram",style:"conversational",length:"short"}:flow==="script"?{topic:"",platform:"tiktok",style:"dynamic",duration:"30"}:flow==="plan"?{topic:"",goal:"growth",platform:"telegram",style:"expert"}:{sourceId:null,selectedOutputs:[]};
- const body=flow==="post"?t.postEntry:flow==="script"?t.scriptEntry:flow==="plan"?t.planEntry:t.repEntry,kb={inline_keyboard:[[tlang(t,"↩️ В меню","↩️ In menu") as any].map(()=>({text:getLang(u)==="en"?"↩️ In menu":"↩️ В меню",callback_data:"menu:back"}))]};
+ const body=flow==="post"?t.postEntry:flow==="script"?t.scriptEntry:flow==="plan"?t.planEntry:t.repEntry,kb={inline_keyboard:[[getLang(u)==="en"?{text:"↩️ In menu",callback_data:"menu:back"}:{text:"↩️ В меню",callback_data:"menu:back"}]]};
  if(msg?.message_id){await editMessageText(env,chatId,Number(msg.message_id),body,kb);return saveSession(env,userId,flow,flow==="repurpose"?"source":"topic",d,Number(msg.message_id),chatId)}
  const m=await sendMessage(env,chatId,body,kb);return saveSession(env,userId,flow,flow==="repurpose"?"source":"topic",d,Number(m.message_id),chatId);
 }
