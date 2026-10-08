@@ -69,7 +69,7 @@ export async function adminAction(env:Bindings,userId:number,chatId:string,data:
   const users=Number((await env.DB.prepare("SELECT COUNT(*) c FROM users").first<A>())?.c??0);
   const newUsers=await q("SELECT COUNT(*) c FROM users WHERE created_at>=?");
   const active=await q("SELECT COUNT(*) c FROM users WHERE last_seen_at>=?");
-  const generations=await q("SELECT COUNT(*) c FROM jobs WHERE created_at>=? AND type NOT IN ('source_analysis')",);
+  const generations=await q("SELECT COUNT(*) c FROM jobs WHERE created_at>=? AND type NOT IN ('source_analysis')");
   const success=await q("SELECT COUNT(*) c FROM jobs WHERE created_at>=? AND status='completed'");
   const errors=await q("SELECT COUNT(*) c FROM jobs WHERE created_at>=? AND status IN ('failed','partial')");
   const credits=await q("SELECT COALESCE(SUM(CASE WHEN type='reserve' THEN -delta ELSE 0 END),0) c FROM credit_transactions WHERE created_at>=?");
