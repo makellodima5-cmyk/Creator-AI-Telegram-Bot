@@ -30,20 +30,30 @@ async function failAfterStore(env:Bindings,job:any,lang:Lang){await finishJob(en
 async function failJob(env:Bindings,job:any,reason:string,lang:Lang){const reserved=Number(job.credits_reserved??0);if(reserved)await refundCredits(env,job.user_id,reserved,job.id,"job:"+job.id+":refund");const d=parse(job.input_json);if(d.contentPlanDayId)await env.DB.prepare("UPDATE content_plan_days SET status='❌',updated_at=? WHERE id=?").bind(Date.now(),Number(d.contentPlanDayId)).run();const t=copyFor(lang);await env.DB.prepare("UPDATE jobs SET status='failed',credits_reserved=0,error_code='AI_ERROR',error_message=?,completed_at=?,updated_at=? WHERE id=?").bind(reason.slice(0,500),Date.now(),Date.now(),job.id).run();await finishJob(env,job);if(job.telegram_chat_id&&job.telegram_message_id)await editMessageText(env,job.telegram_chat_id,Number(job.telegram_message_id),t.aiError,errorKeyboard(job.id,lang)).catch(()=>{});}
 async function repurposeTotal(env:Bindings,a:string[]){let n=0;for(const x of a)n+=await getPrice(env,"repurpose_"+x);return n;}
 export function plainResult(t:string,o:any,lang:Lang="ru"){
+ const isEn=lang==="en",L=(ru:string,en:string)=>isEn?en:ru;
  if(t==="repurpose_hooks"||t==="hooks")return (o.hooks??[]).map((x:string,i:number)=>(i+1)+". "+x).join("\n\n");
  if(t==="repurpose_cta"||t==="cta")return (o.ctas??[]).map((x:string,i:number)=>(i+1)+". "+x).join("\n\n");
- if(["script","repurpose_tiktok","repurpose_youtube"].includes(t))return [o.title?"🎬 "+o.title:"",String(o.hook||"").trim()?("🔥 HOOK — 0–3 сек"+(lang==="en"?"":"")+"\n\n"+String(o.hook)):"",(o.scenes??[]).map((s:any,i:number)=>((i?("СЦЕНА "+(i+1)+"\n\n"):"")+"🎙️ "+(lang==="en"?"Диктор:":"Диктор:")+"\n"+String(s.spoken)+"\n\n🎥 "+(lang==="en"?"Визуал:":"Визуал:")+"\n"+String(s.visual)+"\n\n🖥️ "+(lang==="en"?"Текст на экране:":"Текст на экране:")+"\n"+String(s.onScreen)).join("\n\n"),o.cta?"🎯 CTA\n\n"+String(o.cta):"",o.duration?"⏱️ ≈ "+String(o.duration)+" сек":""]) .filter(Boolean).join("\n\n");
- if(t==="content_plan"||t==="repurpose_plan")return String(o.days??[]).length?String((o.days??[]).map((d:any)=>String(d.day)+" · "+String(d.format)+"\n"+String(d.title)+"\n"+(lang==="en"?"○ Not created":"○ Не создано")).join("\n\n")):"";
- if(t==="style_profile")return lang==="en"?"Style profile saved.":"Профиль стиля сохранён.";
+ if(t==="script"||t==="repurpose_tiktok"||t==="repurpose_youtube"){
+  const scenes=(o.scenes??[]).map((s:any,i:number)=>(i?L("СЦЕНА "+(i+1),"SCENE "+(i+1))+"\n\n":"")+"🎙️ "+L("Диктор:","Voice-over:")+"\n"+String(s.spoken)+"\n\n🎥 "+L("Визуал:","Visual:")+"\n"+String(s.visual)+"\n\n🖥️ "+L("Текст на экране:","On-screen text:")+"\n"+String(s.onScreen)).join("\n\n");
+  return [o.title?String(o.title):"",o.hook?L("🔥 HOOK — 0–3 сек","🔥 HOOK — 0–3 sec")+"\n\n"+String(o.hook):"",scenes,o.cta?L("🎯 CTA","🎯 CTA")+"\n\n"+String(o.cta):"",o.duration?L("⏱️ ≈ "+String(o.duration)+" сек","⏱️ ≈ "+String(o.duration)+" sec"):""].filter(Boolean).join("\n\n");
+ }
+ if(t==="content_plan"||t==="repurpose_plan"){
+  const days=(o.days??[]).map((d:any)=>String(d.day)+" · "+String(d.format)+"\n"+String(d.title)+"\n"+L("○ Не создано","○ Not created")).join("\n\n");
+  return [o.topic?L("Тема: ","Topic: ")+String(o.topic):"",o.goal?L("Цель: ","Goal: ")+String(o.goal):"",days].filter(Boolean).join("\n\n");
+ }
+ if(t==="style_profile")return L("Профиль стиля сохранён.","Style profile saved.");
  return String(o.body??o.content??o.title??"").trim();
 }
 export function resultMarkup(t:string,o:any,lang:Lang="ru"){
- if(t==="post"||t==="repurpose_telegram")return `✦ CREATOR AI / POST MAKER\n\n🚀 Пост готов\n\n${String(o.title??"")}\n\n${String(o.body??o.content??"")}`;
- if(t==="repurpose_instagram")return `📱 CREATOR AI / INSTAGRAM\n\n${String(o.hook??o.title??"")}\n\n${String(o.body??o.content??"")}\n\n${o.cta?"🎯 CTA\n\n"+String(o.cta):""}${Array.isArray(o.hashtags)&&o.hashtags.length?"\n\n"+o.hashtags.map((x:any)=>String(x)).join(" "):""}`;
- if(t==="script"||t==="repurpose_tiktok")return `🎬 CREATOR AI / TIKTOK\n\n🚀 Сценарий готов\n\n${plainResult(t,o,lang)}`;
- if(t==="repurpose_youtube")return `▶️ CREATOR AI / YOUTUBE SHORTS\n\n🚀 Сценарий готов\n\n${plainResult(t,o,lang)}`;
- if(t==="repurpose_hooks")return `🔥 CREATOR AI / 5 HOOK\n\n${plainResult(t,o,lang)}`;
- if(t==="repurpose_cta")return `🎯 CREATOR AI / CTA\n\n${plainResult(t,o,lang)}`;
- if(t==="style_profile")return lang==="en"?`✦ Creator AI / My Style\n\n✨ Style analyzed\n\nProfile saved and will be used in supported text generations.`:`✦ Creator AI / My Style\n\n✨ Стиль проанализирован\n\nПрофиль сохранён и будет использоваться в поддерживаемых текстовых генерациях.`;
- return lang==="en"?`📅 CREATOR AI / CONTENT PLAN\n\n🚀 Content plan ready\n\n${plainResult(t,o,lang)}`:`📅 CREATOR AI / CONTENT PLAN\n\n🚀 Контент-план готов\n\n${plainResult(t,o,lang)}`;
+ const L=(ru:string,en:string)=>lang==="en"?en:ru;
+ if(t==="post")return L("✦ CREATOR AI / POST MAKER\n\n🚀 Пост готов","✦ CREATOR AI / POST MAKER\n\n🚀 Post ready")+"\n\n"+String(o.title??"")+"\n\n"+String(o.body??o.content??"");
+ if(t==="repurpose_telegram")return L("✦ CREATOR AI / POST MAKER\n\n🚀 Пост готов","✦ CREATOR AI / POST MAKER\n\n🚀 Post ready")+"\n\n"+String(o.title??"")+"\n\n"+String(o.body??o.content??"");
+ if(t==="repurpose_instagram")return ["📱 CREATOR AI / INSTAGRAM",String(o.hook??o.title??"").trim(),String(o.body??o.content??"").trim(),o.cta?L("🎯 CTA","🎯 CTA")+"\n\n"+String(o.cta):"",Array.isArray(o.hashtags)&&o.hashtags.length?o.hashtags.map((x:any)=>String(x)).join(" "):""].filter(Boolean).join("\n\n");
+ if(t==="script")return "🎬 CREATOR AI / SCRIPT MAKER\n\n"+L("🚀 Сценарий готов","🚀 Script ready")+"\n\n"+plainResult(t,o,lang);
+ if(t==="repurpose_tiktok")return "🎬 CREATOR AI / TIKTOK\n\n"+L("🚀 Сценарий готов","🚀 Script ready")+"\n\n"+plainResult(t,o,lang);
+ if(t==="repurpose_youtube")return "▶️ CREATOR AI / YOUTUBE SHORTS\n\n"+L("🚀 Сценарий готов","🚀 Script ready")+"\n\n"+plainResult(t,o,lang);
+ if(t==="repurpose_hooks")return "🔥 CREATOR AI / 5 HOOK\n\n"+plainResult(t,o,lang);
+ if(t==="repurpose_cta")return "🎯 CREATOR AI / CTA\n\n"+plainResult(t,o,lang);
+ if(t==="style_profile")return L("✦ Creator AI / My Style\n\n✨ Стиль проанализирован\n\nПрофиль сохранён и будет использоваться в поддерживаемых текстовых генерациях.","✦ Creator AI / My Style\n\n✨ Style analyzed\n\nProfile saved and will be used in supported text generations.");
+ return "📅 CREATOR AI / CONTENT PLAN\n\n"+L("🚀 Контент-план готов","🚀 Content plan ready")+"\n\n"+plainResult(t,o,lang);
 }
