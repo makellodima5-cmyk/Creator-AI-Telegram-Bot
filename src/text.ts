@@ -171,6 +171,11 @@ deliveryError:`⚠️ Не удалось отправить результат
 unsupported:`⚠️ Этот формат пока не поддерживается
 
 Отправь текст, PDF, DOC или TXT.`,
+sourceTooLarge:`⚠️ Материал слишком большой
+
+Я не могу обработать такой объём целиком.
+
+Попробуй отправить более короткую версию материала.`,
 sourceInvalid:`⚠️ Материал не прошёл проверку
 
 Проверь формат и размер файла или отправь другой материал.`,
@@ -414,6 +419,11 @@ We saved the result and will retry delivery.`,
 unsupported:`⚠️ This format is not supported yet
 
 Send text, PDF, DOC or TXT.`,
+sourceTooLarge:`⚠️ This material is too large
+
+I cannot process this amount of content in full.
+
+Try sending a shorter version of the material.`,
 sourceInvalid:`⚠️ The material could not be processed
 
 Check the format and size or send another material.`,
