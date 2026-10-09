@@ -76,4 +76,17 @@ describe("Final T3 UX contract",()=>{
   out.days[1].format="Reels";
   expect(validateOutput("content_plan",out).ok).toBe(true);
  });
+
+ it("documents the implemented Final T3 MVP instead of legacy placeholders",()=>{
+  const readme=readFileSync("README.md","utf8");
+  expect(readme).not.toContain("Persistent Telegram navigation keyboard");
+  expect(readme).not.toContain("Full admin UI");
+  expect(readme).not.toContain("Telegram media/document/audio/video ingestion for Repurpose");
+  expect(readme).toContain("Telegram Bot Menu");
+  expect(readme).toContain("Admin Panel");
+  expect(readme).toContain("PDF, DOC or TXT");
+  expect(readme).toContain("My Style");
+  expect(readme).toContain("AI cost");
+ });
+
 });
