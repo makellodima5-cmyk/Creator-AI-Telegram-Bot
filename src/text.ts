@@ -90,6 +90,14 @@ styleCollecting:(count:number)=>`🧠 Готово.
 Можно отправить до 20.
 
 Получено: ${count} / 20`,
+styleProgress:(count:number)=>`🧠 Готово.
+
+Теперь отправляй свои тексты один за другим.
+
+Для первого анализа нужно минимум 5 примеров.
+Можно отправить до 20.
+
+Получено: ${count} / 20`,
 styleReady:(count:number)=>`✦ Creator AI / My Style
 
 Отлично. Уже достаточно примеров для первого анализа.
@@ -326,6 +334,14 @@ Send them one by one or several in a row.
 
 You can start analysis after 5 examples.`,
 styleCollecting:(count:number)=>`🧠 Done.
+
+Now send your texts one by one.
+
+First analysis needs at least 5 examples.
+You can send up to 20.
+
+Received: ${count} / 20`,
+styleProgress:(count:number)=>`🧠 Done.
 
 Now send your texts one by one.
 
